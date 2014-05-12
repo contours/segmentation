@@ -1,0 +1,17 @@
+apply plugin: 'java'
+apply plugin: 'application'
+
+sourceCompatibility = '1.8'
+
+mainClassName = 'segmentation.Main'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile fileTree(dir: 'lib/compile', include: '*.jar')
+    compile 'net.sf.jopt-simple:jopt-simple:4.6'
+
+    runtime fileTree(dir: 'lib/runtime', include: '*.jar')
+}

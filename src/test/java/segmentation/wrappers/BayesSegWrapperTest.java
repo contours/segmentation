@@ -17,12 +17,22 @@ public class BayesSegWrapperTest {
     @Test
     public void testSegmentTexts() throws IOException {
         OptionParser parser = BayesSegWrapper.OPTIONS;
-        OptionSet options = parser.parse("-k", "-s", "src/test/data/STOPWORD.list");
+        OptionSet options = parser.parse("-s", "src/test/data/STOPWORD.list");
         Segmenter segmenter = new BayesSegWrapper(options);
         List<List<String>> texts = new ArrayList<>();
         texts.add(Main.loadText(new File("src/test/data/050.ref")));
-        List<Integer> segmentCounts = Arrays.asList(new Integer[]{ 7 });
-        List<int[]> segmentations = segmenter.segmentTexts(texts, segmentCounts);
+
+        List<int[]> segmentations;
+        segmentations = segmenter.segmentTexts(texts, Arrays.asList(1));
+        assertThat(segmentations, contains(new int[]{212}));
+
+        segmentations = segmenter.segmentTexts(texts, Arrays.asList(3));
+        assertThat(segmentations, contains(new int[]{77,50,85}));
+
+        segmentations = segmenter.segmentTexts(texts, Arrays.asList(5));
+        assertThat(segmentations, contains(new int[]{41,36,25,49,61}));
+
+        segmentations = segmenter.segmentTexts(texts, Arrays.asList(7));
         assertThat(segmentations, contains(new int[]{41,11,25,25,25,25,60}));
     }
 }

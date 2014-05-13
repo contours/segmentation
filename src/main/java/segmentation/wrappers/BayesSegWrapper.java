@@ -2,17 +2,10 @@ package segmentation.wrappers;
 
 import edu.mit.nlp.segmenter.dp.DPDocument;
 import edu.mit.nlp.segmenter.dp.DPSeg;
-import edu.mit.nlp.util.StrIntMap;
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import joptsimple.OptionParser;
@@ -26,7 +19,6 @@ public class BayesSegWrapper implements Segmenter {
     private static final OptionSpec<Void> FIXED_BLOCKS;
     private static final OptionSpec<Double> PRIOR;
     private static final OptionSpec<Double> DISPERSION;
-    private static final OptionSpec<Void> KNOWN_SEGMENT_COUNT;
     private static final OptionSpec<Void> USE_DURATION;
     private static final OptionSpec<Void> DEBUG;
     private static final OptionSpec<File> STOPWORDS;
@@ -35,7 +27,6 @@ public class BayesSegWrapper implements Segmenter {
         OPTIONS = new OptionParser();
         DEBUG = OPTIONS.accepts("debug");
         FIXED_BLOCKS = OPTIONS.accepts("fixed-blocks");
-        KNOWN_SEGMENT_COUNT = OPTIONS.accepts("known-segment-count");
         USE_DURATION = OPTIONS.accepts("use-duration");
         PRIOR = OPTIONS.accepts("prior")
                 .withRequiredArg().ofType(Double.class).defaultsTo(0.2);
@@ -85,7 +76,6 @@ public class BayesSegWrapper implements Segmenter {
     private final boolean useFixedBlocks;
     private final double prior;
     private final double dispersion;
-    private final boolean numSegsIsKnown;
     private final boolean useDuration;
     private final boolean debug;
     private final List<String> stopwords;
@@ -94,7 +84,6 @@ public class BayesSegWrapper implements Segmenter {
         this.useFixedBlocks = options.has(FIXED_BLOCKS);
         this.prior = options.valueOf(PRIOR);
         this.dispersion = options.valueOf(DISPERSION);
-        this.numSegsIsKnown = options.has(KNOWN_SEGMENT_COUNT);
         this.useDuration = options.has(USE_DURATION);
         this.debug = options.has(DEBUG);
         try {
@@ -110,7 +99,6 @@ public class BayesSegWrapper implements Segmenter {
                 convertTextsToDPDocuments(texts),
                 createDPTruths(segmentCounts));
         dpseg.m_debug = this.debug;
-        dpseg.m_num_segments_known = this.numSegsIsKnown;
         dpseg.use_duration = this.useDuration;
         dpseg.segment(new double[]{
             Math.log(this.prior),

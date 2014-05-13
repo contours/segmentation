@@ -5,8 +5,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
@@ -23,7 +21,7 @@ public class Main {
                 .withRequiredArg().ofType(Integer.class);
         OptionSpec<Void> HELP = parser.accepts("help").forHelp();
 
-        OptionSet options = BayesSegWrapper.OPTIONS.parse(args);
+        OptionSet options = parser.parse(args);
 
         if (options.has(HELP)) {
             parser.printHelpOn(System.out);
@@ -53,7 +51,7 @@ public class Main {
         }
     }
     
-    private static List<String> loadText(File file) throws IOException {
+    public static List<String> loadText(File file) throws IOException {
         return Files.lines(file.toPath()).collect(Collectors.toList());
     }
 

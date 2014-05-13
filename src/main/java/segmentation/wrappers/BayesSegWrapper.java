@@ -8,8 +8,11 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import joptsimple.OptionParser;
@@ -73,24 +76,10 @@ public class BayesSegWrapper implements Segmenter {
                 .toArray();
     }
 
-    private static List<String> loadWords(File file) {
-        List<String> words = new ArrayList<>();
-        if (file != null) {
-            try {
-                BufferedReader br = new BufferedReader(new FileReader(file));
-                String line = br.readLine();
-                while (line != null) {
-                    line = line.trim().toLowerCase();
-                    words.add(line);
-                    line = br.readLine();
-                }
-            } catch (FileNotFoundException e) {
-                throw new IllegalStateException();
-            } catch (IOException e) {
-                throw new IllegalStateException();
-            }
-        }
-        return words;
+    private static List<String> loadWords(File file) throws IOException {
+        return Files.lines(file.toPath())
+                .map(line -> line.trim().toLowerCase())
+                .collect(Collectors.toList());
     }
 
     private final boolean useFixedBlocks;
@@ -108,7 +97,11 @@ public class BayesSegWrapper implements Segmenter {
         this.numSegsIsKnown = options.has(KNOWN_SEGMENT_COUNT);
         this.useDuration = options.has(USE_DURATION);
         this.debug = options.has(DEBUG);
-        this.stopwords = loadWords(options.valueOf(STOPWORDS));
+        try {
+            this.stopwords = loadWords(options.valueOf(STOPWORDS));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override

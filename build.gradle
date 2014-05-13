@@ -13,5 +13,14 @@ dependencies {
     compile fileTree(dir: 'lib/compile', include: '*.jar')
     compile 'net.sf.jopt-simple:jopt-simple:4.6'
 
+    testCompile 'junit:junit-dep:4.11'
+    testCompile 'org.hamcrest:hamcrest-library:1.3'
+
     runtime fileTree(dir: 'lib/runtime', include: '*.jar')
+}
+
+test {
+    testLogging {
+        exceptionFormat = 'full'
+    }
 }

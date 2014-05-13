@@ -134,19 +134,5 @@ public class Stats {
     }
     
 
-    public static void main (String argv[]){
-        List<String> list = new ArrayList<String>();
-        list.add("1");
-        list.add("2");
-        list.add("3");
-        list.add("4");
-        List<List<String>> orderings = generateOrderings(list);
-        for (List<String> sublist : orderings){
-            for (String string : sublist){
-                System.out.print (string+" ");
-            }
-            System.out.println();
-        }
-    }
-    public static double MAX_LOG_DISPERSION = 10;
+     public static double MAX_LOG_DISPERSION = 10;
 }

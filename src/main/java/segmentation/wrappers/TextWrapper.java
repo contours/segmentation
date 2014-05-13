@@ -6,7 +6,6 @@ import edu.mit.nlp.ling.Text;
 import edu.mit.nlp.util.StrIntMap;
 import edu.mit.nlp.util.Utils;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.StringTokenizer;
 import java.util.stream.Collectors;
@@ -50,10 +49,6 @@ public class TextWrapper {
         System.out.println("word count: " + wordCount);
     }
 
-    public List<Integer> getReferenceSeg() {
-        return this.sentenceBreakList_;
-        //return Arrays.asList(new Integer[]{6, 40, 95, 212});
-    }
 
     public double[][] createWordOccurrenceTable() {
         Matrix localMatrix = this.createWordOccurrenceMatrix();
@@ -70,13 +65,6 @@ public class TextWrapper {
         return arrayOfDouble;
     }
 
-    public void printSentences() {
-        this.text_.stream().forEach(sentence -> {
-            System.out.println(sentence.stream()
-                    .map(wordId -> this.getTokenMap().get(wordId))
-                    .collect(Collectors.joining(" ")));
-        });
-    }
 
     private Matrix createWordOccurrenceMatrix() {
         int numWords = this.getLexiconSize();

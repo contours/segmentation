@@ -36,23 +36,15 @@ public class BayesSegWrapper implements Segmenter {
                 .withRequiredArg().ofType(File.class);
     }
 
-    private static DPDocument[] createDPDocument(TextWrapper textw) {
-        double[][] w = textw.createWordOccurrenceTable(); // D x T matrix
-        double[][] m_words = new double[w[0].length][w.length];
-        for (int i = 0; i < w.length; i++) {
-            for (int j = 0; j < w[i].length; j++) {
-                m_words[j][i] = w[i][j];
+    private static DPDocument createDPDocument(TextWrapper textw) {
+        double[][] wot = textw.createWordOccurrenceTable(); // D x T matrix
+        double[][] sentences = new double[wot[0].length][wot.length];
+        for (int i = 0; i < wot.length; i++) {
+            for (int j = 0; j < wot[i].length; j++) {
+                sentences[j][i] = wot[i][j];
             }
         }
-        DPDocument doc = new DPDocument(m_words, textw.getReferenceSeg().size() + 1, true);
-        return new DPDocument[]{doc};
-    }
-
-    private static int[][] createDPTruths(List<Integer> numSegments) {
-        return numSegments.stream()
-                .map(i -> IntStream.rangeClosed(1, i).toArray())
-                .collect(Collectors.toList())
-                .toArray(new int[numSegments.size()][]);
+        return new DPDocument(sentences);
     }
 
     private static int[] indexesToMasses(int[] indexes, int mass) {
@@ -96,18 +88,15 @@ public class BayesSegWrapper implements Segmenter {
     @Override
     public List<int[]> segmentTexts(List<List<String>> texts, List<Integer> segmentCounts) {
         DPSeg dpseg = new DPSeg(
-                convertTextsToDPDocuments(texts),
-                createDPTruths(segmentCounts));
-        dpseg.m_debug = this.debug;
-        dpseg.use_duration = this.useDuration;
-        dpseg.segment(new double[]{
-            Math.log(this.prior),
-            Math.log(this.dispersion)
-        });
-        return convertDPResponsesToMasses(dpseg.getResponses(), texts);
+                convertTextsToDPDocuments(texts), 
+                segmentCounts.stream().mapToInt(i->i).toArray());
+        dpseg.setDebug(this.debug);
+        dpseg.setUseDuration(this.useDuration);
+        int[][] segmentations = dpseg.segment(this.prior, this.dispersion);
+        return convertDPSegmentationsToMasses(segmentations, texts);
     }
 
-    private List<int[]> convertDPResponsesToMasses(int[][] responses, List<List<String>> texts) {
+    private List<int[]> convertDPSegmentationsToMasses(int[][] responses, List<List<String>> texts) {
         if (this.useFixedBlocks) {
             throw new UnsupportedOperationException(
                     "TODO: handle using fixed blocks by converting window segmentations to sentence segmentations");
@@ -117,17 +106,13 @@ public class BayesSegWrapper implements Segmenter {
                 .collect(Collectors.toList());
     }
 
-    private DPDocument[][] convertTextsToDPDocuments(List<List<String>> texts) {
+    private DPDocument[] convertTextsToDPDocuments(List<List<String>> texts) {
         boolean doStemming = true;
         return texts.stream()
-                .map(text -> { 
-                    TextWrapper textw = new TextWrapper(text, this.stopwords, doStemming);
-                    textw.printSentences();
-                    return textw;
-                })
+                .map(text -> new TextWrapper(text, this.stopwords, doStemming))
                 .map(textw -> createDPDocument(textw))
                 .collect(Collectors.toList())
-                .toArray(new DPDocument[texts.size()][1]);
+                .toArray(new DPDocument[texts.size()]);
     }
 
 }

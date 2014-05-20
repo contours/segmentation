@@ -1,17 +1,22 @@
 package segmentation.wrappers;
 
-import edu.mit.nlp.segmenter.dp.DPDocument;
+import com.google.common.base.CharMatcher;
+import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableList;
+import edu.mit.nlp.ling.Stemmer;
 import edu.mit.nlp.segmenter.dp.DPSeg;
+import edu.mit.nlp.util.Utils;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
+import java.util.stream.StreamSupport;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
 import segmentation.Segmenter;
+import segmentation.StreamUtils;
 
 public class BayesSegWrapper implements Segmenter {
     public static final OptionParser OPTIONS;
@@ -36,33 +41,11 @@ public class BayesSegWrapper implements Segmenter {
                 .withRequiredArg().ofType(File.class);
     }
 
-    private static DPDocument createDPDocument(TextWrapper textw) {
-        double[][] wot = textw.createWordOccurrenceTable(); // D x T matrix
-        double[][] sentences = new double[wot[0].length][wot.length];
-        for (int i = 0; i < wot.length; i++) {
-            for (int j = 0; j < wot[i].length; j++) {
-                sentences[j][i] = wot[i][j];
-            }
-        }
-        return new DPDocument(sentences);
-    }
-
-    private static int[] indexesToMasses(int[] indexes, int mass) {
-        // DPSeg returns 0-based index of first sentence in each segment.
-        // We want to convert these to mass-based segmentations.
-        return IntStream.rangeClosed(1, indexes.length)
-                .map(i -> {
-                    return (i < indexes.length)
-                            ? (indexes[i] - indexes[i - 1])
-                            : (mass - indexes[i - 1]);
-                })
-                .toArray();
-    }
-
-    private static List<String> loadWords(File file) throws IOException {
-        return Files.lines(file.toPath())
-                .map(line -> line.trim().toLowerCase())
-                .collect(Collectors.toList());
+    private static ImmutableList<String> loadWords(File file) throws IOException {
+        return ImmutableList.copyOf(
+                Files.lines(file.toPath())
+                        .map(line -> line.trim().toLowerCase())
+                        .collect(Collectors.toList()));
     }
 
     private final boolean useFixedBlocks;
@@ -70,7 +53,7 @@ public class BayesSegWrapper implements Segmenter {
     private final double dispersion;
     private final boolean useDuration;
     private final boolean debug;
-    private final List<String> stopwords;
+    private final ImmutableList<String> stopwords;
 
     public BayesSegWrapper(OptionSet options) {
         this.useFixedBlocks = options.has(FIXED_BLOCKS);
@@ -86,33 +69,51 @@ public class BayesSegWrapper implements Segmenter {
     }
 
     @Override
-    public List<int[]> segmentTexts(List<List<String>> texts, List<Integer> segmentCounts) {
-        DPSeg dpseg = new DPSeg(
-                convertTextsToDPDocuments(texts), 
-                segmentCounts.stream().mapToInt(i->i).toArray());
+    public List<List<Integer>> segmentTexts(List<List<String>> texts, List<Integer> segmentCounts) {
+        DPSeg dpseg = new DPSeg(this.prepareTexts(texts), segmentCounts);
         dpseg.setDebug(this.debug);
-        dpseg.setUseDuration(this.useDuration);
-        int[][] segmentations = dpseg.segment(this.prior, this.dispersion);
-        return convertDPSegmentationsToMasses(segmentations, texts);
+        return dpseg.segment(this.prior);
     }
 
-    private List<int[]> convertDPSegmentationsToMasses(int[][] responses, List<List<String>> texts) {
-        if (this.useFixedBlocks) {
-            throw new UnsupportedOperationException(
-                    "TODO: handle using fixed blocks by converting window segmentations to sentence segmentations");
-        }
-        return IntStream.range(0, texts.size())
-                .mapToObj(i -> indexesToMasses(responses[i], texts.get(i).size()))
-                .collect(Collectors.toList());
+    private List<List<List<String>>> prepareTexts(List<List<String>> texts) {
+        return texts.stream().map(text ->
+                text.stream()
+                        .map(BayesSegWrapper::clean)
+                        .map(Splitter.on(' ')::split)
+                        .map(this::removeStopwords)
+                        .map(this::stemWords)
+                        .collect(StreamUtils.toImmutableList())
+        ).collect(StreamUtils.toImmutableList());
+    }
+    
+    static String clean(String s) {
+        String lowercased = s.toLowerCase();
+        String filtered = CharMatcher.JAVA_LOWER_CASE
+                .or(CharMatcher.JAVA_DIGIT)
+                .or(CharMatcher.WHITESPACE)
+                .or(CharMatcher.anyOf("'`$"))
+                .retainFrom(lowercased);
+        String spaced = CharMatcher.WHITESPACE.trimAndCollapseFrom(filtered, ' ');
+        return spaced.replaceAll("([a-z])(')([a-z])", "$1 '$3");
     }
 
-    private DPDocument[] convertTextsToDPDocuments(List<List<String>> texts) {
-        boolean doStemming = true;
-        return texts.stream()
-                .map(text -> new TextWrapper(text, this.stopwords, doStemming))
-                .map(textw -> createDPDocument(textw))
-                .collect(Collectors.toList())
-                .toArray(new DPDocument[texts.size()]);
+    private List<String> removeStopwords(Iterable<String> words) {
+        return StreamSupport.stream(words.spliterator(), false)
+                .filter(word -> ! this.stopwords.contains(word))
+                .collect(StreamUtils.toImmutableList());
     }
-
+    
+    private List<String> stemWords(List<String> words) {
+        // TODO allow a configurable stemming function defaulting to a null stemmer
+        return words.stream()
+                .map(BayesSegWrapper::stemWord)
+                .collect(StreamUtils.toImmutableList());
+    }
+    
+    private static String stemWord(String word) {
+        Stemmer stemmer = new Stemmer();
+        stemmer.add(word.toCharArray(), word.length());
+        stemmer.stem();
+        return stemmer.toString();
+    }
 }

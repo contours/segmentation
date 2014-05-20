@@ -2,9 +2,21 @@ package edu.mit.util.stats;
 
 import cern.jet.stat.Gamma;
 import java.util.HashMap;
+import java.util.Map;
 
-/* computes the gamma function using the CERN code, but memoizes results */
-public interface FastGamma {
-    public double logGamma(final double in);
-    public double gamma(final double in);
+public class FastGamma {
+    
+    private final Map<Double,Double> memo;
+
+    public FastGamma(){ 
+        this.memo = new HashMap<>();
+    }
+    
+    public FastGamma(int init_size, float load_factor){ 
+        this.memo = new HashMap<>(init_size, load_factor);
+    }
+    
+    public double logGamma(final double in){
+        return memo.computeIfAbsent(in, Gamma::logGamma);
+    }
 }

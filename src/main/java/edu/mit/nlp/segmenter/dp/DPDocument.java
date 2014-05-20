@@ -1,141 +1,156 @@
 package edu.mit.nlp.segmenter.dp;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMultiset;
 import edu.mit.util.stats.FastDCM;
 import edu.mit.util.stats.FastDigamma;
 import edu.mit.util.stats.FastGamma;
+import java.util.List;
 
 public class DPDocument {
 
-    private final double[][] sentences;
-    private final int vocabularySize;
-    private final double[][] cumSums;
-    private final double[] cumSum;
+    final ImmutableList<String> words;
+    final ImmutableList<ImmutableMultiset<String>> cumulativeWordCounts;
+    final ImmutableList<Integer> cumulativeTotalWords;
+    final int sentenceCount;
+    final int vocabularySize;
     private final FastDCM fastdcm;
     private final FastDigamma digamma;
 
     /**
-     * @param sentences an matrix representation of the document. there are
-     * <code>sents.length</code> sentences, and each row of <code>sents</code>
-     * is an array of size W (the size of the vocabulary).
-     *
+     * Constructs a representation of a document suitable for dynamic 
+     * programming, by creating a list of cumulative word counts per sentence.
+     * Takes a list of sentences (lists of tokens), which are assumed to have
+     * already been processed in whatever ways are desired (e.g. cleaned,
+     * stemmed, stop-words removed, etc).
+     * 
+     * @param sentences a list of lists of tokens
      */
-    public DPDocument(double[][] sentences) {
-        this.sentences = sentences;
-
-        this.vocabularySize = this.sentences[0].length;
-        cumSum = new double[getSentenceCount() + 1];
-        cumSums = new double[getSentenceCount() + 1][this.vocabularySize];
-        //fill 'em up
-        for (int w = 0; w < this.vocabularySize; w++) {
-            cumSums[0][w] = 0;
+    private DPDocument(Builder builder) {
+        
+        this.words = builder.words;
+        this.cumulativeWordCounts = builder.cumulativeWordCounts;
+        this.cumulativeTotalWords = builder.cumulativeTotalWords;
+        this.sentenceCount = builder.sentenceCount;
+        this.vocabularySize = builder.words.size();
+        this.digamma = new FastDigamma();
+        this.fastdcm = new FastDCM(1, this.vocabularySize, builder.gamma);
+    }
+    
+    public static class Builder {
+        
+        private final ImmutableMultiset.Builder<String> wordsB;
+        private final ImmutableList.Builder<ImmutableMultiset<String>> cumulativeWordCountsB;
+        private final ImmutableList.Builder<Integer> cumulativeTotalWordsB;
+        private int wordCount;
+        private int sentenceCount;
+        private ImmutableList<String> words;
+        private ImmutableList<ImmutableMultiset<String>> cumulativeWordCounts;
+        private ImmutableList<Integer> cumulativeTotalWords;
+        private FastGamma gamma;
+        
+        public Builder() {
+            this.wordsB = new ImmutableMultiset.Builder<>();
+            this.cumulativeWordCountsB = new ImmutableList.Builder<>();
+            this.cumulativeTotalWordsB = new ImmutableList.Builder<>();
         }
-        cumSum[0] = 0;
-
-        makeCumulCounts();
-
-        digamma = new FastDigamma();
-        fastdcm = new FastDCM(1, this.vocabularySize, true);
+        
+        public Builder addAll(List<List<String>> sentences) {
+            sentences.stream().forEach(sentence -> {
+                this.add(sentence);
+            });
+            return this;
+        }
+        
+        public Builder add(List<String> sentence) {
+            this.wordsB.addAll(sentence);
+            ImmutableMultiset<String> wordsSoFar = wordsB.build();
+            this.cumulativeWordCountsB.add(wordsSoFar);
+            this.cumulativeTotalWordsB.add(wordsSoFar.size());
+            this.wordCount = wordsSoFar.size();
+            this.sentenceCount++;
+            return this;
+        }
+        
+        public int getWordCount() {
+            return this.wordCount;
+        }
+        
+        public DPDocument build(FastGamma gamma) {
+            ImmutableMultiset<String> wordCounts = wordsB.build();
+            this.words = ImmutableList.copyOf(wordCounts.elementSet());
+            this.cumulativeWordCounts = cumulativeWordCountsB.build();
+            this.cumulativeTotalWords = cumulativeTotalWordsB.build();
+            this.gamma = gamma;
+            return new DPDocument(this);
+        }
+        
+    }
+    
+    int countWordInSegment(String word, Segment segment) {
+        int count = this.cumulativeWordCounts.get(
+                segment.start + segment.length - 1).count(word); 
+        if (segment.start > 0) {
+            count -= this.cumulativeWordCounts.get(segment.start - 1).count(word);
+        }
+        return count;
+    }
+    
+    int countWordsInSegment(Segment segment) {
+        int count = this.cumulativeTotalWords.get(segment.start + segment.length - 1);
+        if (segment.start > 0) {
+            count -= this.cumulativeTotalWords.get(segment.start - 1);
+        }
+        return count;
     }
     
     /**
-     * compute the gradient of the log-likelihood for a segment, under the DCM
-     * model
-     *
-     * @param start the index of the first sentence in the segment
-     * @param end the index of the last sentence in the segment
-     * @param logprior the log of the symmetric dirichlet prior to use
-     * @return
-     *
-     */
-    public double segLLGradientExp(int start, int end, double logprior) {
-        double prior = Math.exp(logprior);
-        return prior * segDCMGradient(start, end, prior);
-    }
-
-    /**
-     * Builds up the cumulative counts, a representation that facilitates fast
-     * computation later.
-     *
-     */
-    private void makeCumulCounts() {
-        cumSum[0] = 0;
-        for (int t = 0; t < getSentenceCount(); t++) {
-            cumSum[t + 1] = 0;
-            for (int w = 0; w < this.vocabularySize; w++) {
-                cumSums[t + 1][w] = cumSums[t][w] + this.sentences[t][w];
-                cumSum[t + 1] += cumSums[t + 1][w];
-            }
-        }
-    }
-
-    /**
-     * compute the gradient of the log-likelihood for a segment, under the DCM
-     * model
-     *
-     * @param start the index of the first sentence in the segment
-     * @param end the index of the last sentence in the segment
-     * @param prior the log of the symmetric dirichlet prior to use
-     *
-     */
-    private double segDCMGradient(int start, int end, double prior) {
-        if (prior == 0) {
-            return Double.MAX_VALUE;
-        }
-        double out = this.vocabularySize
-                * (digamma.digamma(this.vocabularySize * prior)
-                - digamma.digamma(cumSum[end] - cumSum[start - 1] + this.vocabularySize * prior)
-                - digamma.digamma(prior));
-        for (int i = 0; i < this.vocabularySize; i++) {
-            out += digamma.digamma(cumSums[end][i] - cumSums[start - 1][i] + prior);
-        }
-        return out;
-    }
-
-    final int getSentenceCount() {
-        return this.sentences.length;
-    }
-
-    /**
-     * If you have multiple documents, you might want to share the cache for the
-     * gamma function across all documents. This lets you tell it to use a
-     * specific FastGamma cache.
-     *
-     * @param fastGamma the caching fastGamma object
-     *
-     */
-    void setGamma(FastGamma fastGamma) {
-        fastdcm.setGamma(fastGamma);
-    }
-
-    /**
+     * Set the Dirichlet prior to use when computing log-likelihood and gradient.
+     * 
      * @param prior the value of the symmetric Dirichlet prior
-     *
      */
     void setPrior(double prior) {
         fastdcm.setPrior(prior);
     }
 
     /**
-     * compute the log likelihood of a segment under the DCM model
+     * Compute the log-likelihood of a segment.
      *
-     * @param start the index of the first sentence in the segment
-     * @param end the index of the last sentence in the segment
-     * @param prior the symmetric Dirichlet prior to use
-     *
-     *
+     * @param segment the segment
+     * @return the log-likelihood
      */
-    double segLogLikelihood(int start, int end, double prior) {
-        if (prior == 0) {
+    double segmentLogLikelihood(Segment segment) {
+        if (fastdcm.getPrior() == 0) {
             return -Double.MAX_VALUE;
         }
-        int[] counts = new int[this.vocabularySize];
-        for (int i = 0; i < this.vocabularySize; i++) {
-            counts[i] = (int) (cumSums[end][i] - cumSums[start - 1][i]);
-        }
+        int[] counts = this.words.stream()
+                .mapToInt(word -> this.countWordInSegment(word, segment))
+                .toArray();
         return fastdcm.logDCM(counts);
     }
 
-    double[] getCumulativeSums() {
-        return cumSum;
+    /**
+     * Compute the gradient of the log-likelihood for a segment.
+     *
+     * @param segment the segment
+     * @return the gradient
+     *
+     */
+    double segmentLogLikelihoodGradient(Segment segment) {
+        final double prior = fastdcm.getPrior();
+        if (prior == 0) {
+            return Double.MAX_VALUE;
+        }
+        double result = this.vocabularySize * 
+                ( digamma.digamma(this.vocabularySize * prior)
+                - digamma.digamma(this.countWordsInSegment(segment) + this.vocabularySize * prior)
+                - digamma.digamma(prior) );
+        
+        result += this.words.stream()
+                .mapToInt(word -> this.countWordInSegment(word, segment))
+                .mapToDouble(digamma::digamma)
+                .sum();
+
+        return prior * result;
     }
 }

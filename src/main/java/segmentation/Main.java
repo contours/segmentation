@@ -1,9 +1,11 @@
 package segmentation;
 
+import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 import joptsimple.OptionParser;
@@ -39,11 +41,15 @@ public class Main {
             // segmentCounts = 
             List<Integer> segmentCounts = Arrays.asList(options.valueOf(NUM_SEGMENTS));
                     
-            Segmenter segmenter = new BayesSegWrapper(options);
-            List<int[]> segmentations = segmenter.segmentTexts(
-                texts, segmentCounts);
+            // TODO: check that segment counts <= sentence counts
             
-            System.out.println(Arrays.deepToString(segmentations.toArray()));
+            Segmenter segmenter = new BayesSegWrapper(options);
+            List<List<Integer>> segmentations = segmenter.segmentTexts(texts, segmentCounts);
+            
+            segmentations.forEach(segmentation -> {
+                System.out.println(Arrays.toString(segmentation.toArray()));       
+            });
+
 
             // if just one input file or stdin, print to stdout
 

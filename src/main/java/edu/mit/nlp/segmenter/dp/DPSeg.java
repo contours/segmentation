@@ -1,294 +1,228 @@
 package edu.mit.nlp.segmenter.dp;
 
-import edu.mit.util.stats.FastDigamma;
-import edu.mit.util.stats.FastDoubleGamma;
-import edu.mit.util.stats.FastGamma;
-import edu.mit.util.stats.Stats;
+import static com.google.common.base.Preconditions.checkArgument;
+import com.google.common.collect.ImmutableList;
 import edu.mit.util.weka.LBFGSWrapper;
-import java.util.stream.DoubleStream;
-import java.util.stream.Stream;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
- * This class implements the dynamic programming Bayesian segmentation, for both
- * DCM and MAP language models.  *
- * <P>
- * Now with EM estimation of priors. Note that we use log-priors everywhere. The
- * reason is that the log of the prior is in [-inf,inf], while the prior itself
- * is in [0,inf]. Since my LBFGS engine doesn't take constraints, it's better to
- * search in log space. This requires only a small modification to the gradient
- * computation.
-*
+ * This class implements the dynamic programming Bayesian segmentation using
+ * the DCM language model.
  */
 public class DPSeg {
 
-    private static final double MAX_LOG_DISPERSION = 10;
-
-    private boolean useDuration;
     private boolean debug;
-    private final DPDocument[] documents;
-    private final int[][] segmentations;
-    private final int[] segmentCounts;
-    private final FastDigamma digamma;
-    private final FastGamma fastGamma;
+    private final DPDocumentList documents;
+    private final List<Integer> segmentCounts;
+    private final Map<DPDocument,Segmentation> segmentations;
 
     /**
-     * @param documents The documents to segment
-     * @param segmentCounts number of segments per document
+     * @param texts
+     * @param segmentCounts
      *
      */
-    public DPSeg(DPDocument[] documents, int[] segmentCounts) {
-        this.useDuration = true;
-        this.documents = documents;
-        this.segmentations = new int[this.documents.length][];
-        this.segmentCounts = segmentCounts;
-        for (int i = 0; i < this.documents.length; i++) {
-            segmentations[i] = new int[this.segmentCounts[i]];
-        }
-        this.debug = true;
-        this.digamma = new FastDigamma();
+    public DPSeg(List<List<List<String>>> texts, List<Integer> segmentCounts) {
+        checkArgument(segmentCounts.size() == texts.size(), 
+                "%s documents but %s segment counts specified", 
+                texts.size(), segmentCounts.size());
 
-        int startSize = Stream.of(documents).mapToInt(doc ->
-                (int) DoubleStream.of(doc.getCumulativeSums()).max().getAsDouble())
-                .sum();
-        fastGamma = new FastDoubleGamma(startSize * 2, .6f);
+        this.segmentCounts = segmentCounts;
+        this.segmentations = new HashMap<>(texts.size());
+        this.documents = new DPDocumentList(texts);
+
+        this.debug = true;
+    }
+
+    private static Segmentation bestSegmentationOf(DPDocument doc, int numSegments) {
+
+        double[][] bestScores = new double[numSegments+1][doc.sentenceCount+1];
+        Segment[][] bestSegments = new Segment[numSegments+1][doc.sentenceCount+1];
+        
+        double[][] segLLs = new double[doc.sentenceCount+1][doc.sentenceCount+1];
+        for (int start = 0; start < doc.sentenceCount; start++) {
+            for (int length = 1; start+length <= doc.sentenceCount; length++) {
+                segLLs[start][length] = doc.segmentLogLikelihood(new Segment(start, length));
+            }
+        }
+        
+        for (int end = 1; end <= doc.sentenceCount; end++) {
+            bestScores[0][end] = -Double.MAX_VALUE;
+        }
+        for (int i = 1; i <= numSegments; i++) {
+            for (int end = 0; end < i; end++) {
+                bestScores[i][end] = -Double.MAX_VALUE;
+            }
+            for (int end = i; end <= doc.sentenceCount; end++) {
+                double bestScore = -Double.MAX_VALUE;
+                int bestStart = -1;
+                for (int start = 0; start < end; start++) {
+                    double score = bestScores[i-1][start] + segLLs[start][end-start];
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestStart = start;
+                    }
+                }
+                bestScores[i][end] = bestScore;
+                bestSegments[i][end] = new Segment(bestStart, end-bestStart);
+            }
+        }
+        
+        // Working backward, build a list of the segmentation masses.
+        List<Segment> bestSegmentation = new ArrayList<>(numSegments);
+        bestSegmentation.add(bestSegments[numSegments][doc.sentenceCount]);
+        for (int k = numSegments-1; k > 0; k--) {
+            int remainingMass = doc.sentenceCount 
+                    - bestSegmentation.stream().mapToInt(s -> s.length).sum();
+            bestSegmentation.add(0, bestSegments[k][remainingMass]);
+        }
+        
+        return new Segmentation(ImmutableList.copyOf(bestSegmentation));
+    }
+    
+    /**
+     *
+     * @param prior
+     * @return
+     */
+    public List<List<Integer>> segment(final double prior) {
+
+        IntStream.range(0, this.documents.size()).forEach(index -> {
+            final DPDocument doc = this.documents.get(index);
+            final int numSegments = this.segmentCounts.get(index);
+            
+            doc.setPrior(prior);
+
+            this.segmentations.put(doc, bestSegmentationOf(doc, numSegments));
+        });
+        
+        
+        return ImmutableList.copyOf(
+                this.segmentations.values().stream()
+                        .map(Segmentation::toList)
+                        .collect(Collectors.toList())
+        );
     }
 
     /**
-     * segEM estimates the parameters using a form of hard EM it computes the
+     * Estimates the parameters using a form of hard EM it computes the
      * best segmentation given the current parameters, then does a
-     * gradient-based search for new parameters, and iterates. As an argument it
-     * takes the initial settings, in log terms. one idea of how to speed this
-     * up is to only recompute the segmentation for a subset of files. or, just
-     * call segem on a few files, then call the final segmentation on all of
-     * them. we could add a class member variable indicating "active" files, and
-     * then only apply segment(), computeGradient(), and computeLL() to those
-     * files. by default all files would be active.
+     * gradient-based search for new parameters, and iterates.
      *
      * @param initialPrior
-     * @param initialDispersion 
-     * @return  
+     * @return the new estimate of the prior
      */
-    public double[] segEM(double initialPrior, double initialDispersion) {
-        
-        segment(initialPrior, initialDispersion);
+    public double estimatePrior(final double initialPrior) {
+
+        segment(initialPrior);
 
         PriorOptimizer optimizer = new PriorOptimizer();
         optimizer.setEPS(1e-5);
         optimizer.setNumCorrections(6); //can afford this because it's relatively easy optimization
-        
+        optimizer.setDebug(debug);
+
+        double prior = initialPrior;
         int iteration = 0;
-        double newLogPrior;
-        double newLogDispersion;
         double improvement;
         double logLikelihood = Double.MAX_VALUE;
 
         do {
-            optimizer.setEstimate(
-                    new double[]{
-                        Math.log(initialPrior), 
-                        Math.log(initialDispersion) });
-            optimizer.setMaxIteration(200);
-            optimizer.setDebug(debug);
-
-            double[] argmin = optimizer.findArgmin();
-            newLogPrior = argmin[0];
-            newLogDispersion = argmin[1];
-            segment(Math.exp(newLogPrior), Math.exp(newLogDispersion));
+            prior = optimizer.reestimatePrior(prior);
+            segment(prior);
 
             improvement = logLikelihood - optimizer.getMinFunction();
             logLikelihood = optimizer.getMinFunction();
 
         } while (improvement > 0 && ++iteration < 20);
-        
-        return new double[]{newLogPrior, newLogDispersion};
-    }
 
-    /**
-     * segment each document in the dataset.
-     *
-     * @param prior
-     * @param dispersion
-     * @return the results for each document. kind of a bad design, it ought to
-     * just return the segmentation.
-     *
-     */
-    public int[][] segment(double prior, double dispersion) {
-
-        for (int docctr = 0; docctr < this.documents.length; docctr++) {
-            DPDocument doc = this.documents[docctr];
-            doc.setGamma(fastGamma);
-            doc.setPrior(prior);
-
-            int numSegments = segmentCounts[docctr];
-            int numSentences = doc.getSentenceCount(); //number of sentences
-            
-            //this is the DP
-            double C[][] = new double[numSegments + 1][numSentences + 1];
-            int B[][] = new int[numSegments + 1][numSentences + 1];
-
-            //the semantics of C are:
-            //C[i][t] = the ll of the best segmentation of x_0 .. x_[t-1] into i segments
-
-            double[][] seglls = new double[numSentences + 1][numSentences + 1];
-            for (int t = 0; t <= numSentences; t++) {
-                for (int t2 = 0; t2 < t; t2++) {
-                    seglls[t][t2] += doc.segLogLikelihood(t2 + 1, t, prior);
-                }
-            }
-            C[0][0] = 0;
-            B[0][0] = 0;
-            for (int t = 1; t <= numSentences; t++) {
-                C[0][t] = -Double.MAX_VALUE;
-                B[0][t] = 1;
-            }
-            for (int i = 1; i <= numSegments; i++) {
-                for (int t = 0; t < i; t++) {
-                    C[i][t] = -Double.MAX_VALUE;
-                    B[i][t] = -1;
-                }
-                for (int t = i; t <= numSentences; t++) {
-                    double best_val = -Double.MAX_VALUE;
-                    int best_idx = -1;
-                    for (int t2 = 0; t2 < t; t2++) {
-                        double score = C[i - 1][t2] + seglls[t][t2];
-                        if (useDuration) {
-                            double[] pdur = computePDur(
-                                    numSentences, 
-                                    (double) numSentences / numSegments, 
-                                    Math.log(dispersion)); 
-                            score += pdur[t - t2];
-                        }
-                        if (score > best_val) {
-                            best_val = score;
-                            best_idx = t2;
-                        }
-                    }
-                    C[i][t] = best_val;
-                    B[i][t] = best_idx;
-                }
-            }
-
-            segmentations[docctr][numSegments - 1] = B[numSegments][numSentences];
-            for (int k = numSegments - 1; k > 0; k--) {
-                segmentations[docctr][k - 1] = B[k][segmentations[docctr][k]];
-            }
-        }
-        return segmentations;
-    }
-
-    private double computeTotalLogLikelihood(double[] estimate) {
-        double logLikelihood = 0;
-        
-        double logPrior = estimate[0];
-        double logDispersion = estimate[1];
-        
-        for (int docctr = 0; docctr < this.documents.length; docctr++) {
-            this.documents[docctr].setGamma(fastGamma);
-            this.documents[docctr].setPrior(Math.exp(logPrior));
-
-            int numSegments = segmentCounts[docctr];
-            int numSentences = this.documents[docctr].getSentenceCount();
-            
-            double[] pdur = computePDur(numSentences, (double) numSentences / numSegments, logDispersion);
-
-            for (int k = 0; k < numSegments - 1; k++) {
-                if (this.useDuration) {
-                    logLikelihood += pdur[this.segmentations[docctr][k + 1] - this.segmentations[docctr][k]];
-                }
-                logLikelihood += this.documents[docctr].segLogLikelihood(
-                        this.segmentations[docctr][k] + 1, 
-                        this.segmentations[docctr][k + 1], 
-                        logPrior);
-            }
-            if (this.useDuration) {
-                logLikelihood += pdur[numSentences - this.segmentations[docctr][numSegments - 1]];
-            }
-            logLikelihood += this.documents[docctr].segLogLikelihood(
-                    this.segmentations[docctr][numSegments - 1] + 1, 
-                    this.documents[docctr].getSentenceCount(), 
-                    logPrior);
-        }
-        return logLikelihood;
-    }
-
-    private double[] computeGradient(double[] estimate){
-
-        double logPrior = estimate[0];
-        double logDispersion = estimate[1];
-        
-        for (int docctr = 0; docctr < this.documents.length; docctr++) {
-            this.documents[docctr].setGamma(fastGamma);
-            this.documents[docctr].setPrior(Math.exp(logPrior));
-
-            int numSegments = segmentCounts[docctr];
-            int numSentences = this.documents[docctr].getSentenceCount();
-
-            for (int k = 0; k < numSegments - 1; k++){
-                if (this.useDuration){
-                    logDispersion += Stats.computeDispersionGradient(
-                            this.segmentations[docctr][k+1] - this.segmentations[docctr][k],
-                            (double) numSentences / numSegments,
-                            logDispersion,
-                            digamma);
-                }
-                logPrior += this.documents[docctr].segLLGradientExp(
-                        this.segmentations[docctr][k]+1,
-                        this.segmentations[docctr][k+1],
-                        logPrior);
-            }
-            if (useDuration){
-                logDispersion += Stats.computeDispersionGradient(
-                        numSentences - this.segmentations[docctr][numSegments-1],
-                        (double) numSentences / numSegments,
-                        logDispersion,
-                        digamma);
-            }
-            logPrior += this.documents[docctr].segLLGradientExp(
-                    this.segmentations[docctr][numSegments - 1]+1,
-                    this.documents[docctr].getSentenceCount(),
-                    logPrior);
-        }
-        return new double[]{logPrior, logDispersion};
+        return prior;
     }
 
     public void setDebug(boolean m_debug) {
         this.debug = m_debug;
     }
 
-    public void setUseDuration(boolean use_duration) {
-        this.useDuration = use_duration;
+    private static int sum(List<Integer> integers) {
+        return integers.stream().mapToInt(Integer::intValue).sum();
     }
-
-    private double[] computePDur(int numSentences, double meanDuration, double logDispersion) {
-        double pdur[] = new double[numSentences + 1];
-        if (logDispersion > MAX_LOG_DISPERSION) {
-            logDispersion = MAX_LOG_DISPERSION;
-        }
-        for (int i = 0; i <= numSentences; i++) {
-            pdur[i] = Stats.myLogNBinPdf2(i, meanDuration, Math.exp(logDispersion));
-        }
-        return pdur;
+    
+    /**
+     * Given the log of the Dirichlet prior, calculate the log-likelihood across
+     * all documents. This is the objective function being maximized by the 
+     * PriorOptimizer.
+     * 
+     * @param logPrior log of the prior being re-estimated.
+     * @return the log-likelihood across all documents given this (log) prior
+     */
+    private double computeTotalLogLikelihood(final double logPrior) {
+        return this.documents.stream().mapToDouble(doc ->
+                this.computeForDocument(doc, logPrior, 
+                        doc::segmentLogLikelihood)
+        ).sum();
     }
 
     /**
-     * A class for LBFGS optimization of the priors
-     *
+     * Given the log of the Dirichlet prior, calculate the gradient of the 
+     * log-likelihood across all documents. This is the gradient of the objective
+     * function being maximized by the PriorOptimizer.
+     * 
+     * @param logPrior log of the prior being re-estimated.
+     * @return the gradient of he log-likelihood across all documents
+     */
+    private double computeGradient(final double logPrior) {
+        return logPrior + this.documents.stream().mapToDouble(doc ->
+                this.computeForDocument(doc, logPrior, 
+                        doc::segmentLogLikelihoodGradient)
+        ).sum();
+    }
+    
+    private interface SegmentFunction {
+        double apply(Segment segment);
+    }
+    
+    private double computeForDocument(DPDocument doc, final double logPrior, SegmentFunction f) {
+        doc.setPrior(Math.exp(logPrior));
+
+        return this.segmentations.get(doc).stream()
+                .mapToDouble(segment -> f.apply(segment))
+                .sum();
+    }
+
+    /**
+     * A class for LBFGS optimization of the priors.
+     * See http://en.wikipedia.org/wiki/Limited-memory_BFGS
      */
     private class PriorOptimizer extends LBFGSWrapper {
 
         public PriorOptimizer() {
-            super(2); // 2 parameters: prior + dispersion
+            super(1); // just one parameter, the prior
         }
 
         // we're doing the argmin, so invert it
         @Override
         public double objectiveFunction(double[] estimate) {
-            return -computeTotalLogLikelihood(estimate);
+            return -computeTotalLogLikelihood(estimate[0]);
         }
 
         @Override
         public double[] evaluateGradient(double[] estimate) {
-            return DoubleStream.of(computeGradient(estimate)).map(d -> -d).toArray();
+            return new double[]{-computeGradient(estimate[0])};
+        }
+
+        /**       
+         * Note that the optimizer uses log-priors everywhere. The reason is 
+         * that the log of the prior is in [-inf,inf], while the prior itself
+         * is in [0,inf]. Since the LBFGS engine doesn't take constraints, it's 
+         * better to search in log space.
+         */
+        private double reestimatePrior(double prior) {
+            this.setEstimate(new double[]{Math.log(prior)});
+            return Math.exp(this.findArgmin()[0]);
         }
     }
+
 }

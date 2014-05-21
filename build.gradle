@@ -15,8 +15,6 @@ dependencies {
     compile 'com.google.guava:guava:17.0'
     compile 'org.apache.commons:commons-math3:3.3'
     
-    compile 'lingpipe:lingpipe:3.4.0'
-
     testCompile 'junit:junit-dep:4.11'
     testCompile 'org.hamcrest:hamcrest-library:1.3'
 }

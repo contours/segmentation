@@ -1,5 +1,6 @@
 package edu.mit.util.stats;
 
+import org.apache.commons.math3.special.Gamma;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -12,7 +13,6 @@ public class FastDigamma {
     }
     
     public double digamma(double in){
-        // todo: replace aliasi digamma with Apache Commons Math one
-        return memo.computeIfAbsent(in, com.aliasi.util.Math::digamma);
+        return memo.computeIfAbsent(in, Gamma::digamma);
     }
 }

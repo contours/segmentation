@@ -1,4 +1,4 @@
-package edu.mit.util.stats;
+package edu.mit.nlp.segmenter.dp;
 
 import java.util.function.Function;
 

@@ -1,4 +1,4 @@
-package edu.mit.util.weka;
+package edu.mit.nlp.segmenter.dp;
 
 /**
  * This wraps the RISO Limited Memory BFGS quasi-newton optimization package. It

@@ -2,7 +2,6 @@ package edu.mit.nlp.segmenter.dp;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMultiset;
-import edu.mit.util.stats.FastDCM;
 import java.util.List;
 import java.util.function.Function;
 import org.apache.commons.math3.special.Gamma;

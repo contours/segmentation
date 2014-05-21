@@ -2,7 +2,6 @@ package edu.mit.nlp.segmenter.dp;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.collect.ImmutableList;
-import edu.mit.util.weka.LBFGSWrapper;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;

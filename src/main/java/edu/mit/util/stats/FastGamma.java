@@ -1,5 +1,6 @@
 package edu.mit.util.stats;
 
+// todo: replace CERN gamma with Apache Commons Math one
 import cern.jet.stat.Gamma;
 import java.util.HashMap;
 import java.util.Map;

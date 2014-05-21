@@ -2,12 +2,12 @@ package edu.mit.nlp.segmenter.dp;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * This class implements the dynamic programming Bayesian segmentation using
@@ -16,23 +16,23 @@ import java.util.stream.IntStream;
 public class DPSeg {
 
     private boolean debug;
-    private final DPDocumentList documents;
-    private final List<Integer> segmentCounts;
-    private final Map<DPDocument,Segmentation> segmentations;
+    private final DPDocumentMap documents;
+    private final Map<String,Integer> segmentCounts;
+    private final Map<String,Segmentation> segmentations;
 
     /**
      * @param texts
      * @param segmentCounts
      *
      */
-    public DPSeg(List<List<List<String>>> texts, List<Integer> segmentCounts) {
+    public DPSeg(Map<String,List<List<String>>> texts, Map<String,Integer> segmentCounts) {
         checkArgument(segmentCounts.size() == texts.size(), 
                 "%s documents but %s segment counts specified", 
                 texts.size(), segmentCounts.size());
 
         this.segmentCounts = segmentCounts;
         this.segmentations = new HashMap<>(texts.size());
-        this.documents = new DPDocumentList(texts);
+        this.documents = new DPDocumentMap(texts);
 
         this.debug = true;
     }
@@ -88,23 +88,21 @@ public class DPSeg {
      * @param prior
      * @return
      */
-    public List<List<Integer>> segment(final double prior) {
+    public Map<String,List<Integer>> segment(final double prior) {
 
-        IntStream.range(0, this.documents.size()).forEach(index -> {
-            final DPDocument doc = this.documents.get(index);
-            final int numSegments = this.segmentCounts.get(index);
+        this.documents.keySet().forEach(key -> {
+            final DPDocument doc = this.documents.get(key);
+            final int numSegments = this.segmentCounts.get(key);
             
             doc.setPrior(prior);
 
-            this.segmentations.put(doc, bestSegmentationOf(doc, numSegments));
+            this.segmentations.put(key, bestSegmentationOf(doc, numSegments));
         });
         
-        
-        return ImmutableList.copyOf(
-                this.segmentations.values().stream()
-                        .map(Segmentation::toList)
-                        .collect(Collectors.toList())
-        );
+        return this.segmentations.keySet().stream()
+                .collect(Collectors.toMap(
+                        key -> key, 
+                        key -> this.segmentations.get(key).toList()));
     }
 
     /**
@@ -158,7 +156,7 @@ public class DPSeg {
      * @return the log-likelihood across all documents given this (log) prior
      */
     private double computeTotalLogLikelihood(final double logPrior) {
-        return this.documents.stream().mapToDouble(doc ->
+        return this.documents.values().stream().mapToDouble(doc ->
                 this.computeForDocument(doc, logPrior, 
                         doc::segmentLogLikelihood)
         ).sum();
@@ -173,7 +171,7 @@ public class DPSeg {
      * @return the gradient of he log-likelihood across all documents
      */
     private double computeGradient(final double logPrior) {
-        return logPrior + this.documents.stream().mapToDouble(doc ->
+        return logPrior + this.documents.values().stream().mapToDouble(doc ->
                 this.computeForDocument(doc, logPrior, 
                         doc::segmentLogLikelihoodGradient)
         ).sum();

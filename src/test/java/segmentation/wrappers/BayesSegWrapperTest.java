@@ -1,40 +1,49 @@
 package segmentation.wrappers;
 
+import com.google.common.collect.ImmutableMap;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 import org.junit.Test;
-import segmentation.Main;
 import segmentation.Segmenter;
+import segmentation.Utils;
 
 public class BayesSegWrapperTest {
+    
+    private static <K> Map<K,Integer> map(K key, Integer value) {
+        return ImmutableMap.of(key, value);
+    }
+    
     @Test
     public void testSegmentTexts() throws IOException {
         OptionParser parser = BayesSegWrapper.OPTIONS;
         OptionSet options = parser.parse("-s", "src/test/data/STOPWORD.list");
         Segmenter segmenter = new BayesSegWrapper(options);
-        List<List<String>> texts = new ArrayList<>();
-        texts.add(Main.loadText(new File("src/test/data/050.ref")));
+        
+        File file = new File("src/test/data/050.ref");
+        String path = file.getAbsolutePath();
+        List<File> files = Arrays.asList(file);
+        Map<String,List<String>> texts = Utils.loadTexts(files);
 
-        List<List<Integer>> segmentations;
-        segmentations = segmenter.segmentTexts(texts, Arrays.asList(1));
-        assertThat(segmentations.get(0), contains(212));
+        Map<String,List<Integer>> segmentations;
+        segmentations = segmenter.segmentTexts(texts, map(path, 1));
+        assertThat(segmentations.get(path), contains(212));
 
-        segmentations = segmenter.segmentTexts(texts, Arrays.asList(3));
-        assertThat(segmentations.get(0), contains(77,50,85));
+        segmentations = segmenter.segmentTexts(texts, map(path, 3));
+        assertThat(segmentations.get(path), contains(77,50,85));
 
-        segmentations = segmenter.segmentTexts(texts, Arrays.asList(5));
-        assertThat(segmentations.get(0), contains(41,36,25,49,61));
+        segmentations = segmenter.segmentTexts(texts, map(path, 5));
+        assertThat(segmentations.get(path), contains(41,36,25,49,61));
 
-        segmentations = segmenter.segmentTexts(texts, Arrays.asList(7));
-        assertThat(segmentations.get(0), contains(41,11,25,25,25,25,60));
+        segmentations = segmenter.segmentTexts(texts, map(path, 7));
+        assertThat(segmentations.get(path), contains(41,11,25,25,25,25,60));
     }
     
     @Test

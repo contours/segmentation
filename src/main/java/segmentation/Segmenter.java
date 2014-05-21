@@ -1,8 +1,9 @@
 package segmentation;
 
 import java.util.List;
+import java.util.Map;
 
 public interface Segmenter {
-    public List<List<Integer>> segmentTexts(
-        List<List<String>> texts, List<Integer> numSegments);
+    public Map<String,List<Integer>> segmentTexts(
+        Map<String,List<String>> texts, Map<String,Integer> numSegments);
 }

@@ -3,11 +3,13 @@ package segmentation.wrappers;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 import edu.mit.nlp.segmenter.dp.DPSeg;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import joptsimple.OptionParser;
@@ -82,21 +84,25 @@ public class BayesSegWrapper implements Segmenter {
     }
 
     @Override
-    public List<List<Integer>> segmentTexts(List<List<String>> texts, List<Integer> segmentCounts) {
+    public Map<String,List<Integer>> segmentTexts(
+            Map<String,List<String>> texts, 
+            Map<String,Integer> segmentCounts) {
         DPSeg dpseg = new DPSeg(this.prepareTexts(texts), segmentCounts);
         dpseg.setDebug(this.debug);
         return dpseg.segment(this.prior);
     }
 
-    private List<List<List<String>>> prepareTexts(List<List<String>> texts) {
-        return texts.stream().map(text ->
-                text.stream()
-                        .map(BayesSegWrapper::clean)
-                        .map(Splitter.on(' ')::split)
-                        .map(this::removeStopwords)
-                        .map(this::stemWords)
-                        .collect(Utils.toImmutableList())
-        ).collect(Utils.toImmutableList());
+    private Map<String,List<List<String>>> prepareTexts(Map<String,List<String>> texts) {
+        return texts.keySet().stream().map(key -> {
+            List<String> text = texts.get(key);
+            List<List<String>> sentences = text.stream()
+                    .map(BayesSegWrapper::clean)
+                    .map(Splitter.on(' ')::split)
+                    .map(this::removeStopwords)
+                    .map(this::stemWords)
+                    .collect(Utils.toImmutableList());
+            return Maps.immutableEntry(key, sentences);
+        }).collect(Utils.toImmutableMap());
     }
     
     private List<String> removeStopwords(Iterable<String> words) {

@@ -1,13 +1,11 @@
 package segmentation;
 
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Map;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
@@ -31,7 +29,8 @@ public class Main {
 
             // todo: handle System.in if no file args
             
-            List<List<String>> texts = loadTexts(options.valuesOf(FILES));
+            List<File> files = options.valuesOf(FILES);
+            Map<String,List<String>> texts = Utils.loadTexts(files);
 
             // possibly use withValuesConvertedBy to validate that these are
             // actually existing textfiles?
@@ -39,15 +38,22 @@ public class Main {
             // have option for segmentCounts if there is only one file?
             // otherwise load a file with filenames and counts?
             // segmentCounts = 
-            List<Integer> segmentCounts = Arrays.asList(options.valueOf(NUM_SEGMENTS));
+            if (texts.size() != 1) {
+                throw new IllegalArgumentException("cannot handle more than 1 text yet");
+            }
+            Map<String,Integer> segmentCounts = texts.keySet().stream()
+                    .map(key -> Maps.immutableEntry(key, options.valueOf(NUM_SEGMENTS)))
+                    .collect(Utils.toImmutableMap());
                     
             // TODO: check that segment counts <= sentence counts
             
             Segmenter segmenter = new BayesSegWrapper(options);
-            List<List<Integer>> segmentations = segmenter.segmentTexts(texts, segmentCounts);
+            Map<String,List<Integer>> segmentations = segmenter.segmentTexts(texts, segmentCounts);
             
-            segmentations.forEach(segmentation -> {
-                System.out.println(Arrays.toString(segmentation.toArray()));       
+            segmentations.keySet().forEach(id -> {
+                System.out.println(id);
+                System.out.println(Arrays.toString(segmentations.get(id).toArray()));
+                System.out.println();
             });
 
 
@@ -57,17 +63,5 @@ public class Main {
         }
     }
     
-    public static List<String> loadText(File file) throws IOException {
-        return Files.lines(file.toPath()).collect(Collectors.toList());
-    }
 
-    private static List<List<String>> loadTexts(List<File> files) {
-        return files.stream().map(file -> {
-            try {
-                return loadText(file);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }).collect(Collectors.toList());
-    }
 }

@@ -3,9 +3,7 @@ package segmentation.wrappers;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
-import edu.mit.nlp.ling.Stemmer;
 import edu.mit.nlp.segmenter.dp.DPSeg;
-import edu.mit.nlp.util.Utils;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -16,6 +14,7 @@ import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
 import segmentation.Segmenter;
+import segmentation.Stemmer;
 import segmentation.StreamUtils;
 
 public class BayesSegWrapper implements Segmenter {
@@ -41,6 +40,17 @@ public class BayesSegWrapper implements Segmenter {
                 .withRequiredArg().ofType(File.class);
     }
 
+    static String clean(String s) {
+        String lowercased = s.toLowerCase();
+        String filtered = CharMatcher.JAVA_LOWER_CASE
+                .or(CharMatcher.JAVA_DIGIT)
+                .or(CharMatcher.WHITESPACE)
+                .or(CharMatcher.anyOf("'`$"))
+                .retainFrom(lowercased);
+        String spaced = CharMatcher.WHITESPACE.trimAndCollapseFrom(filtered, ' ');
+        return spaced.replaceAll("([a-z])(')([a-z])", "$1 '$3");
+    }
+
     private static ImmutableList<String> loadWords(File file) throws IOException {
         return ImmutableList.copyOf(
                 Files.lines(file.toPath())
@@ -54,6 +64,7 @@ public class BayesSegWrapper implements Segmenter {
     private final boolean useDuration;
     private final boolean debug;
     private final ImmutableList<String> stopwords;
+    private final Stemmer stemmer;
 
     public BayesSegWrapper(OptionSet options) {
         this.useFixedBlocks = options.has(FIXED_BLOCKS);
@@ -66,6 +77,8 @@ public class BayesSegWrapper implements Segmenter {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+        // TODO allow a configurable stemming function defaulting to a null stemmer
+        this.stemmer = new Stemmer();
     }
 
     @Override
@@ -86,17 +99,6 @@ public class BayesSegWrapper implements Segmenter {
         ).collect(StreamUtils.toImmutableList());
     }
     
-    static String clean(String s) {
-        String lowercased = s.toLowerCase();
-        String filtered = CharMatcher.JAVA_LOWER_CASE
-                .or(CharMatcher.JAVA_DIGIT)
-                .or(CharMatcher.WHITESPACE)
-                .or(CharMatcher.anyOf("'`$"))
-                .retainFrom(lowercased);
-        String spaced = CharMatcher.WHITESPACE.trimAndCollapseFrom(filtered, ' ');
-        return spaced.replaceAll("([a-z])(')([a-z])", "$1 '$3");
-    }
-
     private List<String> removeStopwords(Iterable<String> words) {
         return StreamSupport.stream(words.spliterator(), false)
                 .filter(word -> ! this.stopwords.contains(word))
@@ -104,16 +106,14 @@ public class BayesSegWrapper implements Segmenter {
     }
     
     private List<String> stemWords(List<String> words) {
-        // TODO allow a configurable stemming function defaulting to a null stemmer
         return words.stream()
-                .map(BayesSegWrapper::stemWord)
+                .map(this::stemWord)
                 .collect(StreamUtils.toImmutableList());
     }
-    
-    private static String stemWord(String word) {
-        Stemmer stemmer = new Stemmer();
-        stemmer.add(word.toCharArray(), word.length());
-        stemmer.stem();
-        return stemmer.toString();
+
+    private String stemWord(String word) {
+        this.stemmer.add(word);
+        this.stemmer.stem();
+        return this.stemmer.toString();
     }
 }

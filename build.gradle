@@ -7,17 +7,20 @@ mainClassName = 'segmentation.Main'
 
 repositories {
     mavenCentral()
+    flatDir(dirs: 'lib')
 }
 
 dependencies {
-    compile fileTree(dir: 'lib/compile', include: '*.jar')
     compile 'net.sf.jopt-simple:jopt-simple:4.6'
     compile 'com.google.guava:guava:17.0'
+    compile 'colt:colt:1.2.0'
+    compile 'lingpipe:lingpipe:3.4.0'
+    compile 'mincutseg:mincutseg:'
 
     testCompile 'junit:junit-dep:4.11'
     testCompile 'org.hamcrest:hamcrest-library:1.3'
 
-    runtime fileTree(dir: 'lib/runtime', include: '*.jar')
+    runtime 'log4j:log4j:1.2.14'
 }
 
 test {

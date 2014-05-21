@@ -1,5 +1,7 @@
-- [ ] handle System.in if no file args [Main.java](src/main/java/segmentation/Main.java)
-- [ ] check that segment counts <= sentence counts [Main.java](src/main/java/segmentation/Main.java)
-- [ ] allow a configurable stemming function defaulting to a null stemmer [BayesSegWrapper.java](src/main/java/segmentation/wrappers/BayesSegWrapper.java)
-- [ ] get rid of this class in favor of a generic memoizer [FastDigamma.java](src/main/java/edu/mit/util/stats/FastDigamma.java)
-- [ ] get rid of this class in favor of a generic memoizer [FastGamma.java](src/main/java/edu/mit/util/stats/FastGamma.java)
+- [ ] handle System.in if no file args [
+  Main.java](src/main/java/segmentation/Main.java)
+- [ ] check that segment counts <= sentence counts [
+  Main.java](src/main/java/segmentation/Main.java)
+- [ ] allow a configurable stemming function defaulting to a null stemmer [
+  BayesSegWrapper.java](src/main/java/segmentation/wrappers/BayesSegWrapper.java)
+

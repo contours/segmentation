@@ -3,6 +3,7 @@ package edu.mit.util.stats;
 import java.util.HashMap;
 import java.util.Map;
 
+// todo: get rid of this class in favor of a generic memoizer
 public class FastDigamma {
     private final Map<Double,Double> memo; 
     

@@ -5,6 +5,7 @@ import cern.jet.stat.Gamma;
 import java.util.HashMap;
 import java.util.Map;
 
+// todo: get rid of this class in favor of a generic memoizer
 public class FastGamma {
     
     private final Map<Double,Double> memo;

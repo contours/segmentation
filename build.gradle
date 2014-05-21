@@ -13,7 +13,8 @@ repositories {
 dependencies {
     compile 'net.sf.jopt-simple:jopt-simple:4.6'
     compile 'com.google.guava:guava:17.0'
-    compile 'colt:colt:1.2.0'
+    compile 'org.apache.commons:commons-math3:3.3'
+    
     compile 'lingpipe:lingpipe:3.4.0'
 
     testCompile 'junit:junit-dep:4.11'

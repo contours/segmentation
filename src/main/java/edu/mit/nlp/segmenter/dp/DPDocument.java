@@ -3,9 +3,10 @@ package edu.mit.nlp.segmenter.dp;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMultiset;
 import edu.mit.util.stats.FastDCM;
-import edu.mit.util.stats.FastDigamma;
-import edu.mit.util.stats.FastGamma;
 import java.util.List;
+import java.util.function.Function;
+import org.apache.commons.math3.special.Gamma;
+import segmentation.Utils;
 
 public class DPDocument {
 
@@ -15,7 +16,7 @@ public class DPDocument {
     final int sentenceCount;
     final int vocabularySize;
     private final FastDCM fastdcm;
-    private final FastDigamma digamma;
+    private final Function<Double,Double> digamma;
 
     /**
      * Constructs a representation of a document suitable for dynamic 
@@ -33,8 +34,8 @@ public class DPDocument {
         this.cumulativeTotalWords = builder.cumulativeTotalWords;
         this.sentenceCount = builder.sentenceCount;
         this.vocabularySize = builder.words.size();
-        this.digamma = new FastDigamma();
-        this.fastdcm = new FastDCM(1, this.vocabularySize, builder.gamma);
+        this.fastdcm = new FastDCM(1, this.vocabularySize, builder.logGamma);
+        this.digamma = Utils.memoize(Gamma::digamma);
     }
     
     public static class Builder {
@@ -47,7 +48,7 @@ public class DPDocument {
         private ImmutableList<String> words;
         private ImmutableList<ImmutableMultiset<String>> cumulativeWordCounts;
         private ImmutableList<Integer> cumulativeTotalWords;
-        private FastGamma gamma;
+        private Function<Double,Double> logGamma;
         
         public Builder() {
             this.wordsB = new ImmutableMultiset.Builder<>();
@@ -76,12 +77,12 @@ public class DPDocument {
             return this.wordCount;
         }
         
-        public DPDocument build(FastGamma gamma) {
+        public DPDocument build(Function<Double,Double> logGamma) {
             ImmutableMultiset<String> wordCounts = wordsB.build();
             this.words = ImmutableList.copyOf(wordCounts.elementSet());
             this.cumulativeWordCounts = cumulativeWordCountsB.build();
             this.cumulativeTotalWords = cumulativeTotalWordsB.build();
-            this.gamma = gamma;
+            this.logGamma = logGamma;
             return new DPDocument(this);
         }
         
@@ -142,13 +143,14 @@ public class DPDocument {
             return Double.MAX_VALUE;
         }
         double result = this.vocabularySize * 
-                ( digamma.digamma(this.vocabularySize * prior)
-                - digamma.digamma(this.countWordsInSegment(segment) + this.vocabularySize * prior)
-                - digamma.digamma(prior) );
+                ( digamma.apply(this.vocabularySize * prior)
+                - digamma.apply(this.countWordsInSegment(segment) + this.vocabularySize * prior)
+                - digamma.apply(prior) );
         
         result += this.words.stream()
-                .mapToInt(word -> this.countWordInSegment(word, segment))
-                .mapToDouble(digamma::digamma)
+                .map(word -> (double) this.countWordInSegment(word, segment))
+                .map(digamma)
+                .mapToDouble(Double::doubleValue)
                 .sum();
 
         return prior * result;

@@ -1,12 +1,14 @@
 package edu.mit.nlp.segmenter.dp;
 
-import edu.mit.util.stats.FastGamma;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Function;
+import org.apache.commons.math3.special.Gamma;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 import org.junit.Test;
+import segmentation.Utils;
 
 
 public class DPDocumentTest {
@@ -20,9 +22,11 @@ public class DPDocumentTest {
             /*5*/Arrays.asList(),
             /*6*/Arrays.asList("decided", "let", "children"));    
 
+    private static final Function<Double,Double> logGamma = Utils.memoize(Gamma::logGamma);
+    
     @Test
     public void testConstruct() {
-        DPDocument doc = new DPDocument.Builder().addAll(SENTENCES).build(new FastGamma());
+        DPDocument doc = new DPDocument.Builder().addAll(SENTENCES).build(logGamma);
         assertThat(doc.sentenceCount, equalTo(7));
         assertThat(doc.vocabularySize, equalTo(17));
         assertThat(doc.words, contains("gimme", "ax", "lived", "house", "chimney", 
@@ -37,7 +41,7 @@ public class DPDocumentTest {
 
     @Test
     public void testCountWordInSegment() {
-        DPDocument doc = new DPDocument.Builder().addAll(SENTENCES).build(new FastGamma());
+        DPDocument doc = new DPDocument.Builder().addAll(SENTENCES).build(logGamma);
         assertThat(doc.countWordInSegment("house", new Segment(0,1)), equalTo(1));
         assertThat(doc.countWordInSegment("house", new Segment(0,2)), equalTo(2));
         assertThat(doc.countWordInSegment("house", new Segment(0,3)), equalTo(2));
@@ -49,31 +53,31 @@ public class DPDocumentTest {
     
     @Test(expected=IllegalArgumentException.class)
     public void testCountWordInSegmentRejectsZeroLength() {
-        DPDocument doc = new DPDocument.Builder().addAll(SENTENCES).build(new FastGamma());
+        DPDocument doc = new DPDocument.Builder().addAll(SENTENCES).build(logGamma);
         doc.countWordInSegment("house", new Segment(1,0));
     }
 
     @Test(expected=IllegalArgumentException.class)
     public void testCountWordInSegmentRejectsNegativeLength() {
-        DPDocument doc = new DPDocument.Builder().addAll(SENTENCES).build(new FastGamma());
+        DPDocument doc = new DPDocument.Builder().addAll(SENTENCES).build(logGamma);
         doc.countWordInSegment("house", new Segment(1,-1));
     }
 
     @Test(expected=IndexOutOfBoundsException.class)
     public void testCountWordInSegmentRejectsStartOutOfBounds() {
-        DPDocument doc = new DPDocument.Builder().addAll(SENTENCES).build(new FastGamma());
+        DPDocument doc = new DPDocument.Builder().addAll(SENTENCES).build(logGamma);
         doc.countWordInSegment("house", new Segment(7,1));
     }
 
     @Test(expected=IndexOutOfBoundsException.class)
     public void testCountWordInSegmentRejectsLengthOutOfBounds() {
-        DPDocument doc = new DPDocument.Builder().addAll(SENTENCES).build(new FastGamma());
+        DPDocument doc = new DPDocument.Builder().addAll(SENTENCES).build(logGamma);
         doc.countWordInSegment("house", new Segment(6,2));
     }
 
     @Test
     public void testCountWordsInSegment() {
-        DPDocument doc = new DPDocument.Builder().addAll(SENTENCES).build(new FastGamma());
+        DPDocument doc = new DPDocument.Builder().addAll(SENTENCES).build(logGamma);
         assertThat(doc.countWordsInSegment(new Segment(0,1)), equalTo(4));
         assertThat(doc.countWordsInSegment(new Segment(0,2)), equalTo(10));
         assertThat(doc.countWordsInSegment(new Segment(0,3)), equalTo(13));
@@ -85,25 +89,25 @@ public class DPDocumentTest {
     
     @Test(expected=IllegalArgumentException.class)
     public void testCountWordsInSegmentRejectsZeroLength() {
-        DPDocument doc = new DPDocument.Builder().addAll(SENTENCES).build(new FastGamma());
+        DPDocument doc = new DPDocument.Builder().addAll(SENTENCES).build(logGamma);
         doc.countWordsInSegment(new Segment(1,0));
     }
     
     @Test(expected=IllegalArgumentException.class)
     public void testCountWordsInSegmentRejectsNegativeLength() {
-        DPDocument doc = new DPDocument.Builder().addAll(SENTENCES).build(new FastGamma());
+        DPDocument doc = new DPDocument.Builder().addAll(SENTENCES).build(logGamma);
         doc.countWordsInSegment(new Segment(1,-1));
     }
     
     @Test(expected=IndexOutOfBoundsException.class)
     public void testCountWordsInSegmentRejectsStartOutOfBounds() {
-        DPDocument doc = new DPDocument.Builder().addAll(SENTENCES).build(new FastGamma());
+        DPDocument doc = new DPDocument.Builder().addAll(SENTENCES).build(logGamma);
         doc.countWordsInSegment(new Segment(7,1));
     }
     
     @Test(expected=IndexOutOfBoundsException.class)
     public void testCountWordsInSegmentRejectsLengthOutOfBounds() {
-        DPDocument doc = new DPDocument.Builder().addAll(SENTENCES).build(new FastGamma());
+        DPDocument doc = new DPDocument.Builder().addAll(SENTENCES).build(logGamma);
         doc.countWordsInSegment(new Segment(6,2));
     }
 }

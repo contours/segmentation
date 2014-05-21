@@ -1,10 +1,11 @@
 package edu.mit.nlp.segmenter.dp;
 
 import com.google.common.collect.ImmutableList;
-import edu.mit.util.stats.FastGamma;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Stream;
+import org.apache.commons.math3.special.Gamma;
 import segmentation.Utils;
 
 public class DPDocumentList {
@@ -19,12 +20,15 @@ public class DPDocumentList {
             builders.add(builder);
         });
 
+        // Share a memoized logGamma function among all documents. 
         int initialCacheCapacity = 2 * (
                 builders.stream().mapToInt(b -> b.getWordCount()).sum());
         float cacheLoadFactor = 0.6f;
-        FastGamma gamma = new FastGamma(initialCacheCapacity, cacheLoadFactor);
+        Function<Double,Double> logGamma = Utils.memoize(Gamma::logGamma, 
+                initialCacheCapacity, cacheLoadFactor);
+
         this.documents = builders.stream()
-                .map(builder -> builder.build(gamma))
+                .map(builder -> builder.build(logGamma))
                 .collect(Utils.toImmutableList());
     }
     

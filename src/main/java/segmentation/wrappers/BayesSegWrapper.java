@@ -15,7 +15,7 @@ import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
 import segmentation.Segmenter;
 import segmentation.Stemmer;
-import segmentation.StreamUtils;
+import segmentation.Utils;
 
 public class BayesSegWrapper implements Segmenter {
     public static final OptionParser OPTIONS;
@@ -95,20 +95,20 @@ public class BayesSegWrapper implements Segmenter {
                         .map(Splitter.on(' ')::split)
                         .map(this::removeStopwords)
                         .map(this::stemWords)
-                        .collect(StreamUtils.toImmutableList())
-        ).collect(StreamUtils.toImmutableList());
+                        .collect(Utils.toImmutableList())
+        ).collect(Utils.toImmutableList());
     }
     
     private List<String> removeStopwords(Iterable<String> words) {
         return StreamSupport.stream(words.spliterator(), false)
                 .filter(word -> ! this.stopwords.contains(word))
-                .collect(StreamUtils.toImmutableList());
+                .collect(Utils.toImmutableList());
     }
     
     private List<String> stemWords(List<String> words) {
         return words.stream()
                 .map(this::stemWord)
-                .collect(StreamUtils.toImmutableList());
+                .collect(Utils.toImmutableList());
     }
 
     private String stemWord(String word) {

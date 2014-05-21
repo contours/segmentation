@@ -5,7 +5,7 @@ import edu.mit.util.stats.FastGamma;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
-import segmentation.StreamUtils;
+import segmentation.Utils;
 
 public class DPDocumentList {
 
@@ -25,7 +25,7 @@ public class DPDocumentList {
         FastGamma gamma = new FastGamma(initialCacheCapacity, cacheLoadFactor);
         this.documents = builders.stream()
                 .map(builder -> builder.build(gamma))
-                .collect(StreamUtils.toImmutableList());
+                .collect(Utils.toImmutableList());
     }
     
     public int size() {

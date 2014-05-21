@@ -14,7 +14,7 @@ public class StemmerTest {
     public void testStemmer() {
         Stemmer stemmer = new Stemmer();
         String sentence = "gimme the ax lived in a house where everything is the same as it always was";
-        List<String> stems = StreamUtils.stream(Splitter.on(' ').split(sentence))
+        List<String> stems = Utils.stream(Splitter.on(' ').split(sentence))
                 .map(word -> {
                     stemmer.add(word);
                     stemmer.stem();

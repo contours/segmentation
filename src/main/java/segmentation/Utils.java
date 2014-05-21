@@ -5,7 +5,7 @@ import java.util.stream.Collector;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-public final class StreamUtils {
+public final class Utils {
 
     public static <T> Collector<T, ImmutableList.Builder<T>, ImmutableList<T>>
             toImmutableList() {
@@ -20,6 +20,6 @@ public final class StreamUtils {
         return StreamSupport.stream(it.spliterator(), false);
     }
 
-    private StreamUtils() {}
+    private Utils() {}
 
 }

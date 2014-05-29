@@ -35,14 +35,14 @@ public class DPDocumentTest {
         DPDocument doc = new DPDocument.Builder().addAll(SENTENCES).build(logGamma);
         assertThat(doc.sentenceCount, equalTo(7));
         assertThat(doc.vocabularySize, equalTo(17));
-        assertThat(doc.words, contains("gimme", "ax", "lived", "house", "chimney", 
+        assertThat(doc.vocabulary, contains("gimme", "ax", "lived", "house", "chimney", 
                 "sits", "smoke", "doorknobs", "open", "doors", "windows", "shut", 
                 "upstairs", "downstairs", "decided", "let", "children"));
-        assertThat(doc.cumulativeTotalWords, contains(4, 10, 13, 16, 19, 19, 22));
-        assertThat(doc.cumulativeWordCounts.get(0).count("ax"), equalTo(1));
-        assertThat(doc.cumulativeWordCounts.get(1).count("ax"), equalTo(2));
-        assertThat(doc.cumulativeWordCounts.get(6).count("open"), equalTo(2));
-        assertThat(doc.cumulativeWordCounts.get(6).count("house"), equalTo(3));
+        assertThat(doc.cumulativeTokenCounts, contains(4, 10, 13, 16, 19, 19, 22));
+        assertThat(doc.cumulativeWordUsageCounts.get(0).count("ax"), equalTo(1));
+        assertThat(doc.cumulativeWordUsageCounts.get(1).count("ax"), equalTo(2));
+        assertThat(doc.cumulativeWordUsageCounts.get(6).count("open"), equalTo(2));
+        assertThat(doc.cumulativeWordUsageCounts.get(6).count("house"), equalTo(3));
     }
     
     @Test 

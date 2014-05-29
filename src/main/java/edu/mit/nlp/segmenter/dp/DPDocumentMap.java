@@ -24,7 +24,7 @@ public class DPDocumentMap {
 
         // Share a memoized logGamma function among all documents. 
         int initialCacheCapacity = 2 * (
-                builders.values().stream().mapToInt(b -> b.getWordCount()).sum());
+                builders.values().stream().mapToInt(b -> b.getTokenCount()).sum());
         float cacheLoadFactor = 0.6f;
         Function<Double,Double> logGamma = Utils.memoize(Gamma::logGamma, 
                 initialCacheCapacity, cacheLoadFactor);

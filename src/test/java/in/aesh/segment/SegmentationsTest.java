@@ -1,5 +1,7 @@
-package segmentation;
+package in.aesh.segment;
 
+import in.aesh.segment.Segmentation;
+import in.aesh.segment.Segmentations;
 import com.google.gson.Gson;
 import java.io.File;
 import java.io.FileReader;

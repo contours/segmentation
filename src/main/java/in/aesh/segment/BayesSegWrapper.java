@@ -1,4 +1,4 @@
-package segmentation.wrappers;
+package in.aesh.segment;
 
 import edu.mit.nlp.segmenter.dp.DPSeg;
 import java.util.List;
@@ -6,8 +6,8 @@ import java.util.Map;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
-import segmentation.Segmentation;
-import segmentation.Segmenter;
+import in.aesh.segment.Segmentation;
+import in.aesh.segment.Segmenter;
 
 public class BayesSegWrapper implements Segmenter {
     public static final OptionParser OPTIONS;

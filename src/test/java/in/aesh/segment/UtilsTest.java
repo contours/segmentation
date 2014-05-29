@@ -1,5 +1,6 @@
-package segmentation;
+package in.aesh.segment;
 
+import in.aesh.segment.Utils;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystems;

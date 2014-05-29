@@ -1,4 +1,4 @@
-package segmentation;
+package in.aesh.segment;
 
 import com.google.common.collect.Maps;
 import com.google.gson.annotations.SerializedName;

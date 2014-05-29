@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import org.apache.commons.math3.special.Gamma;
-import segmentation.Utils;
+import in.aesh.segment.Utils;
 
 public class DPDocumentMap {
 

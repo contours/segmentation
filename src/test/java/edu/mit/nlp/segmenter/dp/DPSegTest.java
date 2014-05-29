@@ -1,4 +1,4 @@
-package segmentation.wrappers;
+package edu.mit.nlp.segmenter.dp;
 
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
@@ -8,11 +8,10 @@ import static org.hamcrest.Matchers.closeTo;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertThat;
 import org.junit.Test;
-import segmentation.Main;
-import segmentation.Segmentation;
-import segmentation.Segmenter;
+import in.aesh.segment.Main;
+import in.aesh.segment.Segmentation;
 
-public class BayesSegWrapperTest {
+public class DPSegTest {
     
     private static <K> Map<K,Integer> map(K key, Integer value) {
         return ImmutableMap.of(key, value);
@@ -26,18 +25,23 @@ public class BayesSegWrapperTest {
             "src/test/data/050.ref" }).loadAndPrepareTexts();
         String textID = texts.keySet().toArray(new String[]{})[0];
 
-        Segmenter segmenter = new BayesSegWrapper(0.2);
-        
-        Map<String,Segmentation> segmentations = segmenter.segmentTexts(texts, map(textID, 1));
+        DPSeg dpseg;
+        Map<String,Segmentation> segmentations;
+
+        dpseg = new DPSeg(texts, map(textID, 1));
+        segmentations = dpseg.segment(0.2);
         assertThat(segmentations.get(textID).toList(), contains(212));
 
-        segmentations = segmenter.segmentTexts(texts, map(textID, 3));
+        dpseg = new DPSeg(texts, map(textID, 3));
+        segmentations = dpseg.segment(0.2);
         assertThat(segmentations.get(textID).toList(), contains(77,50,85));
 
-        segmentations = segmenter.segmentTexts(texts, map(textID, 5));
+        dpseg = new DPSeg(texts, map(textID, 5));
+        segmentations = dpseg.segment(0.2);
         assertThat(segmentations.get(textID).toList(), contains(41,36,25,49,61));
 
-        segmentations = segmenter.segmentTexts(texts, map(textID, 7));
+        dpseg = new DPSeg(texts, map(textID, 7));
+        segmentations = dpseg.segment(0.2);
         assertThat(segmentations.get(textID).toList(), contains(41,11,25,25,25,25,60));
     }
     
@@ -49,9 +53,9 @@ public class BayesSegWrapperTest {
             "src/test/data/050.ref" }).loadAndPrepareTexts();
         String textID = texts.keySet().toArray(new String[]{})[0];
 
-        BayesSegWrapper segmenter = new BayesSegWrapper(0.2);
+        DPSeg dpseg = new DPSeg(texts, map(textID, 4));
         
-        double estimate = segmenter.estimatePrior(texts, map(textID, 4));
+        double estimate = dpseg.estimatePrior(0.2);
         assertThat(estimate, closeTo(0.5857, 0.0002));
     }
     

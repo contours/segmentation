@@ -1,5 +1,7 @@
-package segmentation;
+package in.aesh.segment;
 
+import in.aesh.segment.Utils;
+import in.aesh.segment.PorterStemmer;
 import com.google.common.base.Splitter;
 import java.util.List;
 import java.util.stream.Collectors;

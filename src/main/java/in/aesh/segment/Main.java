@@ -1,4 +1,4 @@
-package segmentation;
+package in.aesh.segment;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
@@ -16,7 +16,6 @@ import java.util.Set;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
-import segmentation.wrappers.BayesSegWrapper;
 
 public class Main {
     

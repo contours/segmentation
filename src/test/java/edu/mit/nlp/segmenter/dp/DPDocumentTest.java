@@ -12,10 +12,10 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 import org.junit.Test;
-import segmentation.PorterStemmer;
-import segmentation.Segment;
-import segmentation.Stemmer;
-import segmentation.Utils;
+import in.aesh.segment.PorterStemmer;
+import in.aesh.segment.Segment;
+import in.aesh.segment.Stemmer;
+import in.aesh.segment.Utils;
 
 
 public class DPDocumentTest {

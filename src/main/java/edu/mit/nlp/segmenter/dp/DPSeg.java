@@ -9,8 +9,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import segmentation.Segment;
-import segmentation.Segmentation;
+import in.aesh.segment.Segment;
+import in.aesh.segment.Segmentation;
 
 /**
  * This class implements the dynamic programming Bayesian segmentation using

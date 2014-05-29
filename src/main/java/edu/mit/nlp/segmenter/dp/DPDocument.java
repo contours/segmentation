@@ -1,12 +1,12 @@
 package edu.mit.nlp.segmenter.dp;
 
-import segmentation.Segment;
+import in.aesh.segment.Segment;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMultiset;
 import java.util.List;
 import java.util.function.Function;
 import org.apache.commons.math3.special.Gamma;
-import segmentation.Utils;
+import in.aesh.segment.Utils;
 
 /**
  * DPDocument stores document statistics and provides methods for efficient

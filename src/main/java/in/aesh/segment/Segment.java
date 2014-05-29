@@ -1,4 +1,4 @@
-package segmentation;
+package in.aesh.segment;
 
 import static com.google.common.base.Preconditions.checkArgument;
 

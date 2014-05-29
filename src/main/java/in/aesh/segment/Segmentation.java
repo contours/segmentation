@@ -1,4 +1,4 @@
-package segmentation;
+package in.aesh.segment;
 
 import java.util.ArrayList;
 import java.util.Arrays;

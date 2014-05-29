@@ -1,4 +1,4 @@
-package segmentation;
+package in.aesh.segment;
 
 import java.util.List;
 import java.util.Map;

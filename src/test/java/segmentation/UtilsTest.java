@@ -7,8 +7,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 import org.junit.Test;
 
@@ -45,10 +45,10 @@ public class UtilsTest {
     @Test
     public void testClean() {
         assertThat(Utils.clean("Sam Smith"), equalTo("sam smith"));
-        assertThat(Utils.clean("~`!@#$%^&*()+={}[]|\\:;\"'<>,.?/"), equalTo("$"));
+        assertThat(Utils.clean("~`!@#$%^&*()+={}[]|\\:;\"'<>,.?/"), equalTo("$'"));
         assertThat(Utils.clean(" foo    bar "), equalTo("foo bar"));
         assertThat(Utils.clean("foo\tbar"), equalTo("foo bar"));
-        assertThat(Utils.clean("Sam's house"), equalTo("sam s house"));
-        assertThat(Utils.clean("ménièr"), equalTo("m ni r"));
+        assertThat(Utils.clean("Sam's house"), equalTo("sam 's house"));
+        assertThat(Utils.clean("ménièr"), equalTo("ménièr"));
     }
 }

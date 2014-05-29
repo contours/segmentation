@@ -3,6 +3,7 @@ package segmentation;
 import com.google.common.collect.Maps;
 import com.google.gson.annotations.SerializedName;
 import java.util.Map;
+import java.util.OptionalDouble;
 import java.util.stream.Collectors;
 
 public class Segmentations {
@@ -34,9 +35,7 @@ public class Segmentations {
                             e -> e.getKey(), 
                             e -> e.getValue()));
             return Maps.immutableEntry(itemId, codings);
-        }).collect(Collectors.toMap(
-                e -> e.getKey(), 
-                e -> e.getValue()));
+        }).collect(Utils.toImmutableMap());
     }
     
     public Map<String,Integer> getSegmentCounts(String coder) {
@@ -44,8 +43,17 @@ public class Segmentations {
             String itemId = e.getKey();
             int[] segmentation = this.items.get(itemId).get(coder);
             return Maps.immutableEntry(itemId, segmentation.length);
-        }).collect(Collectors.toMap(
-                e -> e.getKey(), 
-                e -> e.getValue()));
+        }).collect(Utils.toImmutableMap());
+    }
+    
+    public Map<String,Integer> getMeanSegmentCounts() {
+        return this.items.entrySet().stream().map(e -> {
+            String itemId = e.getKey();
+            double mean = this.items.get(itemId).values().stream()
+                    .mapToInt(segmentation -> segmentation.length).average()
+                    .orElseThrow(() -> new IllegalStateException(
+                            itemId + " does not have any segmentations"));
+            return Maps.immutableEntry(itemId, Math.round((float) mean));
+        }).collect(Utils.toImmutableMap());
     }
 }

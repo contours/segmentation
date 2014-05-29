@@ -8,12 +8,12 @@ import static org.junit.Assert.assertThat;
 import org.junit.Test;
 
 
-public class StemmerTest {
+public class PorterStemmerTest {
     
     @Test
     public void testStemmer() {
-        Stemmer stemmer = new Stemmer();
-        String sentence = "gimme the ax lived in a house where everything is the same as it always was";
+        PorterStemmer stemmer = new PorterStemmer();
+        String sentence = "gimme the ax 's mother lived in a house where everything is the same as it always was";
         List<String> stems = Utils.stream(Splitter.on(' ').split(sentence))
                 .map(word -> {
                     stemmer.add(word);
@@ -21,7 +21,7 @@ public class StemmerTest {
                     return stemmer.toString();
                 })
                 .collect(Collectors.toList());
-        assertThat(stems, contains("gimm","the","ax","live","in","a","hous",
+        assertThat(stems, contains("gimm","the","ax","'s","mother","live","in","a","hous",
                 "where","everyth","is","the","same","as","it","alwai","wa"));
     }
 

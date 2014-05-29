@@ -1,20 +1,16 @@
 package segmentation.wrappers;
 
 import com.google.common.collect.ImmutableMap;
-import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import joptsimple.OptionParser;
-import joptsimple.OptionSet;
-import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.closeTo;
+import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertThat;
 import org.junit.Test;
+import segmentation.Main;
 import segmentation.Segmentation;
 import segmentation.Segmenter;
-import segmentation.Utils;
 
 public class BayesSegWrapperTest {
     
@@ -24,41 +20,39 @@ public class BayesSegWrapperTest {
     
     @Test
     public void testSegmentTexts() throws IOException {
-        OptionParser parser = BayesSegWrapper.OPTIONS;
-        OptionSet options = parser.parse("-s", "src/test/data/STOPWORD.list");
-        Segmenter segmenter = new BayesSegWrapper(options);
+        Map<String,List<List<String>>> texts = new Main(new String[]{
+            "-stop", "src/test/data/STOPWORD.list",
+            "-stem",
+            "src/test/data/050.ref" }).loadAndPrepareTexts();
+        String textID = texts.keySet().toArray(new String[]{})[0];
+
+        Segmenter segmenter = new BayesSegWrapper(0.2);
         
-        File file = new File("src/test/data/050.ref");
-        String path = file.getAbsolutePath();
-        List<File> files = Arrays.asList(file);
-        Map<String,List<String>> texts = Utils.loadTexts(files);
+        Map<String,Segmentation> segmentations = segmenter.segmentTexts(texts, map(textID, 1));
+        assertThat(segmentations.get(textID).toList(), contains(212));
 
-        Map<String,Segmentation> segmentations;
-        segmentations = segmenter.segmentTexts(texts, map(path, 1));
-        assertThat(segmentations.get(path).toList(), contains(212));
+        segmentations = segmenter.segmentTexts(texts, map(textID, 3));
+        assertThat(segmentations.get(textID).toList(), contains(77,50,85));
 
-        segmentations = segmenter.segmentTexts(texts, map(path, 3));
-        assertThat(segmentations.get(path).toList(), contains(77,50,85));
+        segmentations = segmenter.segmentTexts(texts, map(textID, 5));
+        assertThat(segmentations.get(textID).toList(), contains(41,36,25,49,61));
 
-        segmentations = segmenter.segmentTexts(texts, map(path, 5));
-        assertThat(segmentations.get(path).toList(), contains(41,36,25,49,61));
-
-        segmentations = segmenter.segmentTexts(texts, map(path, 7));
-        assertThat(segmentations.get(path).toList(), contains(41,11,25,25,25,25,60));
+        segmentations = segmenter.segmentTexts(texts, map(textID, 7));
+        assertThat(segmentations.get(textID).toList(), contains(41,11,25,25,25,25,60));
     }
     
     @Test
     public void testLearnPrior() throws IOException {
-        OptionParser parser = BayesSegWrapper.OPTIONS;
-        OptionSet options = parser.parse("-p", "0.2"); // initial prior
-        BayesSegWrapper segmenter = new BayesSegWrapper(options);
-        
-        Map.Entry<String,List<String>> text = Utils.loadText(new File("src/test/data/050.ref"));
-        Map<String,Integer> segmentCounts = ImmutableMap.of(text.getKey(), 4);
-        Map<String,List<String>> texts = ImmutableMap.of(text.getKey(), text.getValue());
+        Map<String,List<List<String>>> texts = new Main(new String[]{
+            "-stop", "src/test/data/STOPWORD.list",
+            "-stem",
+            "src/test/data/050.ref" }).loadAndPrepareTexts();
+        String textID = texts.keySet().toArray(new String[]{})[0];
 
-        double estimate = segmenter.estimatePrior(texts, segmentCounts);
-        assertThat(estimate, closeTo(0.8, 0.0002));
+        BayesSegWrapper segmenter = new BayesSegWrapper(0.2);
+        
+        double estimate = segmenter.estimatePrior(texts, map(textID, 4));
+        assertThat(estimate, closeTo(0.5857, 0.0002));
     }
     
 }

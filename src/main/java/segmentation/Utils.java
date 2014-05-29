@@ -113,27 +113,15 @@ public final class Utils {
                 .collect(Utils.toImmutableList());
     }
 
-    public static String stemWord(String word, Stemmer stemmer) {
-        stemmer.add(word);
-        stemmer.stem();
-        return stemmer.toString();
-    }
-
-    public static ImmutableList<String> stemWords(List<String> words, Stemmer stemmer) {
-        return words.stream()
-                .map((String word) -> Utils.stemWord(word, stemmer))
-                .collect(Utils.toImmutableList());
-    }
 
     public static String clean(String s) {
         String lowercased = s.toLowerCase();
-        String filtered = CharMatcher.inRange('a', 'z')
-                .or(CharMatcher.JAVA_DIGIT)
+        String filtered = CharMatcher.JAVA_LOWER_CASE
                 .or(CharMatcher.WHITESPACE)
-                .or(CharMatcher.anyOf("$"))
-                .negate()
-                .replaceFrom(lowercased, ' ');
-        return CharMatcher.WHITESPACE.trimAndCollapseFrom(filtered, ' ');
+                .or(CharMatcher.anyOf("$'"))
+                .retainFrom(lowercased);
+        String collapsed = CharMatcher.WHITESPACE.trimAndCollapseFrom(filtered, ' ');
+        return collapsed.replaceAll("([a-z])('[a-z])", "$1 $2");
     }
 
     public static ImmutableList<String> loadWords(File file) throws IOException {

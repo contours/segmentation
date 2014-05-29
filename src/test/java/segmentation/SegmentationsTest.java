@@ -26,6 +26,9 @@ public class SegmentationsTest {
         assertThat(segmentCounts.get("interviews:U-0007"), equalTo(12));
         assertThat(segmentCounts.get("interviews:U-0008"), equalTo(21));
         
+        Map<String,Integer> meanSegmentCounts = segmentations.getMeanSegmentCounts();
+        assertThat(meanSegmentCounts.get("interviews:U-0005"), equalTo(17));
+        
         Segmentation segmentation = segmentations.getItems()
                 .get("interviews:U-0005").get("annotators:docsouth");
         assertThat(segmentation.size(), equalTo(11));

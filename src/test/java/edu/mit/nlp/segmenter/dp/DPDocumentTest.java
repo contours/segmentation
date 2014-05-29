@@ -12,6 +12,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 import org.junit.Test;
+import segmentation.PorterStemmer;
 import segmentation.Segment;
 import segmentation.Stemmer;
 import segmentation.Utils;
@@ -48,15 +49,15 @@ public class DPDocumentTest {
     @Test 
     public void testVocabularySize() throws IOException {
         // load 050.ref and get vocab size
-        Stemmer stemmer = new Stemmer();
+        Stemmer stemmer = new PorterStemmer();
         List<List<String>> sentences = Utils.loadText(
                 new File("src/test/data/050.ref")).getValue().stream()
                 .map(Utils::clean)
                 .map(Splitter.on(' ')::splitToList)
-                .map(words -> Utils.stemWords(words, stemmer))
+                .map(stemmer::stemWords)
                 .collect(Utils.toImmutableList());
         DPDocument doc = new DPDocument.Builder().addAll(sentences).build(logGamma);
-        assertThat(doc.vocabularySize, equalTo(943));
+        assertThat(doc.vocabularySize, equalTo(940));
     }
 
     @Test

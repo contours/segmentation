@@ -1,9 +1,10 @@
 package segmentation;
 
 import com.google.common.collect.Maps;
+import com.google.gson.Gson;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import joptsimple.OptionParser;
@@ -16,9 +17,14 @@ public class Main {
 
         OptionParser parser = BayesSegWrapper.OPTIONS;
         
-        OptionSpec<File> FILES = parser.nonOptions().ofType(File.class);
+        OptionSpec<File> FILES = parser.nonOptions("sentence files to be segmented").ofType(File.class);
         OptionSpec<Integer> NUM_SEGMENTS = parser.accepts("num-segments")
                 .withRequiredArg().ofType(Integer.class);
+        OptionSpec<File> REFERENCE = parser.accepts("reference-segmentation")
+                .withRequiredArg().ofType(File.class);
+        OptionSpec<String> CODER = parser.accepts("coder")
+                .withRequiredArg().ofType(String.class);
+        OptionSpec<Void> ESTIMATE_PRIOR = parser.accepts("estimate-prior");
         OptionSpec<Void> HELP = parser.accepts("help").forHelp();
 
         OptionSet options = parser.parse(args);
@@ -26,40 +32,53 @@ public class Main {
         if (options.has(HELP)) {
             parser.printHelpOn(System.out);
         } else {
-
-            // todo: handle System.in if no file args
-            
             List<File> files = options.valuesOf(FILES);
-            Map<String,List<String>> texts = Utils.loadTexts(files);
 
-            // possibly use withValuesConvertedBy to validate that these are
-            // actually existing textfiles?
-
-            // have option for segmentCounts if there is only one file?
-            // otherwise load a file with filenames and counts?
-            // segmentCounts = 
-            if (texts.size() != 1) {
-                throw new IllegalArgumentException("cannot handle more than 1 text yet");
+            Map<String,List<String>> texts;
+            if (files.isEmpty()) {
+                // todo: handle System.in if no file args
+                System.exit(0);
+                return;
+            } else {
+                texts = Utils.loadTexts(files, f -> { 
+                    String filename = f.getName();
+                    return "interviews:" + filename.substring(0, filename.length() - 4);
+                });
             }
-            Map<String,Integer> segmentCounts = texts.keySet().stream()
-                    .map(key -> Maps.immutableEntry(key, options.valueOf(NUM_SEGMENTS)))
-                    .collect(Utils.toImmutableMap());
+
+            Map<String,Integer> segmentCounts;
+            if (options.has(NUM_SEGMENTS)) {
+                if (texts.size() > 1) {
+                    System.err.println("to specify segment counts for > 1 texts, provide a reference segmentation");
+                    System.exit(1);
+                    return;
+                } else {
+                    segmentCounts = texts.keySet().stream()
+                            .map(key -> Maps.immutableEntry(key, options.valueOf(NUM_SEGMENTS)))
+                            .collect(Utils.toImmutableMap());
+                }
+            } else {
+                Gson gson = new Gson();
+                Segmentations reference = gson.fromJson(
+                        new FileReader(options.valueOf(REFERENCE)), Segmentations.class);
+                segmentCounts = reference.getSegmentCounts(options.valueOf(CODER));
+            }
                     
-            // TODO: check that segment counts <= sentence counts
-            
             Segmenter segmenter = new BayesSegWrapper(options);
-            Map<String,List<Integer>> segmentations = segmenter.segmentTexts(texts, segmentCounts);
             
-            segmentations.keySet().forEach(id -> {
-                System.out.println(id);
-                System.out.println(Arrays.toString(segmentations.get(id).toArray()));
-                System.out.println();
-            });
+            if (options.has(ESTIMATE_PRIOR)) {
+                System.out.println(
+                        ((BayesSegWrapper) segmenter).estimatePrior(texts, segmentCounts));
+            } else {
+                Map<String,Segmentation> segmentations = segmenter.segmentTexts(texts, segmentCounts);
+                segmentations.keySet().forEach(id -> {
+                    System.out.println(id);
+                    System.out.println(segmentations.get(id));
+                    System.out.println();
+                });
+            }
 
-
-            // if just one input file or stdin, print to stdout
-
-            // otherwise write to outfiles; default to infile names + ".json"
+            // todo: write segmentation JSON to stdout
         }
     }
     

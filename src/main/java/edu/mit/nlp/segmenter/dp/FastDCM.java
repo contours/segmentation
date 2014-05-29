@@ -21,15 +21,9 @@ public class FastDCM {
     public double logDCM(int[] counts) {
         double logDCM = this.log_gamma_W_prior - this.W_log_gamma_prior;
         assert (this.W == counts.length) : "W is " + this.W + " but counts.length is " + counts.length;
-        /*
-        if (Math.abs(W_log_gamma_prior - this.logGamma.apply(prior) * this.W) > .0001) {
-            System.out.println(String.format("believed: %.4e ; true %.4e", this.W_log_gamma_prior, this.gamma.logGamma(prior) * W));
-            System.out.println(String.format("W = %d/%d", W, counts.length));
-        }
-        */
         double N = 0;
         for (int i = 0; i < counts.length; i++) {
-            N += counts[i] + prior;
+            N += counts[i] + this.prior;
             logDCM += this.logGamma.apply(counts[i] + this.prior);
         }
         logDCM -= this.logGamma.apply(N);

@@ -1,5 +1,6 @@
 package edu.mit.nlp.segmenter.dp;
 
+import segmentation.Segment;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMultiset;
 import java.util.List;
@@ -141,16 +142,18 @@ public class DPDocument {
         if (prior == 0) {
             return Double.MAX_VALUE;
         }
-        double result = this.vocabularySize * 
-                ( digamma.apply(this.vocabularySize * prior)
-                - digamma.apply(this.countWordsInSegment(segment) + this.vocabularySize * prior)
-                - digamma.apply(prior) );
+        double d1 = digamma.apply(this.vocabularySize * prior);
+        double d2 = digamma.apply(this.countWordsInSegment(segment) + this.vocabularySize * prior);
+        double d3 = digamma.apply(prior);
+        double result = this.vocabularySize * (d1 - d2 - d3);
         
-        result += this.words.stream()
-                .map(word -> (double) this.countWordInSegment(word, segment))
+        double sumOfDigammasOfWordCounts = this.words.stream()
+                .map(word -> this.countWordInSegment(word, segment) + prior)
                 .map(digamma)
                 .mapToDouble(Double::doubleValue)
                 .sum();
+        
+        result += sumOfDigammasOfWordCounts;
 
         return prior * result;
     }

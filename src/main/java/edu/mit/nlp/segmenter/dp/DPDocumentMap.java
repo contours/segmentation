@@ -50,4 +50,8 @@ public class DPDocumentMap {
     public Collection<DPDocument> values() {
         return this.documents.values();
     }
+    
+    public Set<Map.Entry<String,DPDocument>> entrySet() {
+        return this.documents.entrySet();
+    }
 }

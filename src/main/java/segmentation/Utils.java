@@ -1,12 +1,12 @@
 package segmentation;
 
+import com.google.common.base.CharMatcher;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -76,20 +76,70 @@ public final class Utils {
             }
         };
     }
-
+    
     public static Map.Entry<String,List<String>> loadText(File file) throws IOException {
-        Path path = file.toPath();
-        String abspath = path.toAbsolutePath().toString();
-        return Maps.immutableEntry(abspath, Files.lines(path).collect(Collectors.toList()));
+        return loadText(file, f -> f.toPath().toAbsolutePath().toString());
     }
 
-    public static Map<String,List<String>> loadTexts(List<File> files) {
+    public static Map.Entry<String,List<String>> loadText(File file, 
+            Function<File,String> file2id) throws IOException {
+        return Maps.immutableEntry(
+                file2id.apply(file), 
+                Files.lines(file.toPath()).collect(Collectors.toList()));
+    }
+
+    public static ImmutableMap<String,List<String>> loadTexts(List<File> files) {
         return files.stream()
                 .map(file -> {
                     try { return loadText(file); }
                     catch (IOException e) { throw new RuntimeException(e); }
                 })
                 .collect(toImmutableMap());
+    }
+    
+    public static ImmutableMap<String,List<String>> loadTexts(List<File> files, 
+            Function<File,String> file2id) {
+        return files.stream()
+                .map(file -> {
+                    try { return loadText(file, file2id); }
+                    catch (IOException e) { throw new RuntimeException(e); }
+                })
+                .collect(toImmutableMap());
+    }
+
+    public static ImmutableList<String> removeStopwords(List<String> words, List<String> stopwords) {
+        return words.stream()
+                .filter((String word) -> !stopwords.contains(word))
+                .collect(Utils.toImmutableList());
+    }
+
+    public static String stemWord(String word, Stemmer stemmer) {
+        stemmer.add(word);
+        stemmer.stem();
+        return stemmer.toString();
+    }
+
+    public static ImmutableList<String> stemWords(List<String> words, Stemmer stemmer) {
+        return words.stream()
+                .map((String word) -> Utils.stemWord(word, stemmer))
+                .collect(Utils.toImmutableList());
+    }
+
+    public static String clean(String s) {
+        String lowercased = s.toLowerCase();
+        String filtered = CharMatcher.inRange('a', 'z')
+                .or(CharMatcher.JAVA_DIGIT)
+                .or(CharMatcher.WHITESPACE)
+                .or(CharMatcher.anyOf("$"))
+                .negate()
+                .replaceFrom(lowercased, ' ');
+        return CharMatcher.WHITESPACE.trimAndCollapseFrom(filtered, ' ');
+    }
+
+    public static ImmutableList<String> loadWords(File file) throws IOException {
+        return Files.lines(file.toPath())
+                .map((String line) -> line.trim().toLowerCase())
+                .collect(Utils.toImmutableList());
     }
 
     private Utils() {}

@@ -1,4 +1,4 @@
-package edu.mit.nlp.segmenter.dp;
+package segmentation;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -12,5 +12,10 @@ public class Segment {
         checkArgument(length > 0, "Segment length must be > 0; was %s", length);
         this.start = start;
         this.length = length;
+    }
+    
+    @Override
+    public String toString() {
+        return String.format("(%s,%s)", this.start, this.length);
     }
 }

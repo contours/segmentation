@@ -1,13 +1,16 @@
 package edu.mit.nlp.segmenter.dp;
 
+import cc.mallet.optimize.LimitedMemoryBFGS;
+import cc.mallet.optimize.OptimizationException;
 import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Maps;
+import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import segmentation.Segment;
+import segmentation.Segmentation;
 
 /**
  * This class implements the dynamic programming Bayesian segmentation using
@@ -15,7 +18,6 @@ import java.util.stream.Collectors;
  */
 public class DPSeg {
 
-    private boolean debug;
     private final DPDocumentMap documents;
     private final Map<String,Integer> segmentCounts;
     private final Map<String,Segmentation> segmentations;
@@ -26,15 +28,11 @@ public class DPSeg {
      *
      */
     public DPSeg(Map<String,List<List<String>>> texts, Map<String,Integer> segmentCounts) {
-        checkArgument(segmentCounts.size() == texts.size(), 
-                "%s documents but %s segment counts specified", 
-                texts.size(), segmentCounts.size());
+        checkArgument(segmentCounts.keySet().containsAll(texts.keySet()));
 
         this.segmentCounts = segmentCounts;
         this.segmentations = new HashMap<>(texts.size());
         this.documents = new DPDocumentMap(texts);
-
-        this.debug = true;
     }
 
     private static Segmentation bestSegmentationOf(DPDocument doc, int numSegments) {
@@ -88,7 +86,7 @@ public class DPSeg {
      * @param prior
      * @return
      */
-    public Map<String,List<Integer>> segment(final double prior) {
+    public Map<String,Segmentation> segment(final double prior) {
 
         this.documents.keySet().forEach(key -> {
             final DPDocument doc = this.documents.get(key);
@@ -99,10 +97,7 @@ public class DPSeg {
             this.segmentations.put(key, bestSegmentationOf(doc, numSegments));
         });
         
-        return this.segmentations.keySet().stream()
-                .collect(Collectors.toMap(
-                        key -> key, 
-                        key -> this.segmentations.get(key).toList()));
+        return ImmutableMap.copyOf(this.segmentations);
     }
 
     /**
@@ -114,39 +109,39 @@ public class DPSeg {
      * @return the new estimate of the prior
      */
     public double estimatePrior(final double initialPrior) {
-
+        
         segment(initialPrior);
 
-        PriorOptimizer optimizer = new PriorOptimizer();
-        optimizer.setEPS(1e-5);
-        optimizer.setNumCorrections(6); //can afford this because it's relatively easy optimization
-        optimizer.setDebug(debug);
-
-        double prior = initialPrior;
+        Optimizable optimizable = new Optimizable(initialPrior); 
+        LimitedMemoryBFGS optimizer = new LimitedMemoryBFGS(optimizable);
+        
         int iteration = 0;
+        double logLikelihood = -Double.MAX_VALUE;
         double improvement;
-        double logLikelihood = Double.MAX_VALUE;
-
+        
         do {
-            prior = optimizer.reestimatePrior(prior);
-            segment(prior);
+            try {
+                optimizer.optimize();
+            } catch (OptimizationException e) {
+                // Line search could not step in the current direction. This is 
+                // not necessarily cause for alarm. Sometimes this happens close 
+                // to the maximum, where the function may be very flat. So we 
+                // assume it means we have converged.
+                break;
+            }
+            improvement = optimizable.logLikelihood - logLikelihood;
+            logLikelihood = optimizable.logLikelihood;
+            
+            segment(optimizable.prior);
+            optimizer.reset();
 
-            improvement = logLikelihood - optimizer.getMinFunction();
-            logLikelihood = optimizer.getMinFunction();
-
-        } while (improvement > 0 && ++iteration < 20);
-
-        return prior;
+            iteration++;
+            
+        } while (improvement > 0 && iteration++ < 20);
+        
+        return Math.exp(optimizable.logPrior);
     }
 
-    public void setDebug(boolean m_debug) {
-        this.debug = m_debug;
-    }
-
-    private static int sum(List<Integer> integers) {
-        return integers.stream().mapToInt(Integer::intValue).sum();
-    }
-    
     /**
      * Given the log of the Dirichlet prior, calculate the log-likelihood across
      * all documents. This is the objective function being maximized by the 
@@ -156,9 +151,9 @@ public class DPSeg {
      * @return the log-likelihood across all documents given this (log) prior
      */
     private double computeTotalLogLikelihood(final double logPrior) {
-        return this.documents.values().stream().mapToDouble(doc ->
-                this.computeForDocument(doc, logPrior, 
-                        doc::segmentLogLikelihood)
+        return this.documents.entrySet().stream().mapToDouble(e ->
+                this.computeForDocument(e, logPrior, 
+                        e.getValue()::segmentLogLikelihood)
         ).sum();
     }
 
@@ -171,9 +166,9 @@ public class DPSeg {
      * @return the gradient of he log-likelihood across all documents
      */
     private double computeGradient(final double logPrior) {
-        return logPrior + this.documents.values().stream().mapToDouble(doc ->
-                this.computeForDocument(doc, logPrior, 
-                        doc::segmentLogLikelihoodGradient)
+        return this.documents.entrySet().stream().mapToDouble(e ->
+                this.computeForDocument(e, logPrior, 
+                        e.getValue()::segmentLogLikelihoodGradient)
         ).sum();
     }
     
@@ -181,45 +176,70 @@ public class DPSeg {
         double apply(Segment segment);
     }
     
-    private double computeForDocument(DPDocument doc, final double logPrior, SegmentFunction f) {
+    private double computeForDocument(Map.Entry<String,DPDocument> e, 
+            final double logPrior, SegmentFunction f) {
+        DPDocument doc = e.getValue();
         doc.setPrior(Math.exp(logPrior));
 
-        return this.segmentations.get(doc).stream()
+        return this.segmentations.get(e.getKey()).stream()
                 .mapToDouble(segment -> f.apply(segment))
                 .sum();
     }
 
-    /**
-     * A class for LBFGS optimization of the priors.
-     * See http://en.wikipedia.org/wiki/Limited-memory_BFGS
-     */
-    private class PriorOptimizer extends LBFGSWrapper {
+    private class Optimizable 
+    implements cc.mallet.optimize.Optimizable.ByGradientValue {
 
-        public PriorOptimizer() {
-            super(1); // just one parameter, the prior
+        private double prior;
+        private double logPrior;
+        private double logLikelihood;
+        
+        private Optimizable(double prior) {
+            this.prior = prior;
+            this.logPrior = Math.log(prior);
         }
-
-        // we're doing the argmin, so invert it
+        
         @Override
-        public double objectiveFunction(double[] estimate) {
-            return -computeTotalLogLikelihood(estimate[0]);
+        public double getValue() {
+            this.logLikelihood = computeTotalLogLikelihood(this.logPrior);
+            return this.logLikelihood;
         }
 
         @Override
-        public double[] evaluateGradient(double[] estimate) {
-            return new double[]{-computeGradient(estimate[0])};
+        public void getValueGradient(double[] gradient) {
+            gradient[0] = computeGradient(this.logPrior);
         }
 
-        /**       
-         * Note that the optimizer uses log-priors everywhere. The reason is 
-         * that the log of the prior is in [-inf,inf], while the prior itself
-         * is in [0,inf]. Since the LBFGS engine doesn't take constraints, it's 
-         * better to search in log space.
-         */
-        private double reestimatePrior(double prior) {
-            this.setEstimate(new double[]{Math.log(prior)});
-            return Math.exp(this.findArgmin()[0]);
+        @Override
+        public int getNumParameters() {
+            return 1;
         }
+
+        @Override
+        public void getParameters(double[] parameters) {
+            parameters[0] = this.logPrior;
+        }
+
+        @Override
+        public double getParameter(int index) {
+            checkArgument(index==0);
+            return this.logPrior;
+        }
+
+        @Override
+        public void setParameters(double[] parameters) {
+            this.logPrior = parameters[0];
+            this.prior = Math.exp(parameters[0]);
+        }
+
+        @Override
+        public void setParameter(int index, double parameter) {
+            checkArgument(index==0);
+            this.logPrior = parameter;
+            this.prior = Math.exp(parameter);
+        }
+        
     }
+    
+
 
 }

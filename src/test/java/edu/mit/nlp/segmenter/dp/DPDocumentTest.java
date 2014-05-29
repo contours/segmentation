@@ -1,13 +1,19 @@
 package edu.mit.nlp.segmenter.dp;
 
+import com.google.common.base.Splitter;
+import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
 import org.apache.commons.math3.special.Gamma;
+import static org.hamcrest.Matchers.closeTo;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 import org.junit.Test;
+import segmentation.Segment;
+import segmentation.Stemmer;
 import segmentation.Utils;
 
 
@@ -37,6 +43,20 @@ public class DPDocumentTest {
         assertThat(doc.cumulativeWordCounts.get(1).count("ax"), equalTo(2));
         assertThat(doc.cumulativeWordCounts.get(6).count("open"), equalTo(2));
         assertThat(doc.cumulativeWordCounts.get(6).count("house"), equalTo(3));
+    }
+    
+    @Test 
+    public void testVocabularySize() throws IOException {
+        // load 050.ref and get vocab size
+        Stemmer stemmer = new Stemmer();
+        List<List<String>> sentences = Utils.loadText(
+                new File("src/test/data/050.ref")).getValue().stream()
+                .map(Utils::clean)
+                .map(Splitter.on(' ')::splitToList)
+                .map(words -> Utils.stemWords(words, stemmer))
+                .collect(Utils.toImmutableList());
+        DPDocument doc = new DPDocument.Builder().addAll(sentences).build(logGamma);
+        assertThat(doc.vocabularySize, equalTo(943));
     }
 
     @Test
@@ -109,5 +129,11 @@ public class DPDocumentTest {
     public void testCountWordsInSegmentRejectsLengthOutOfBounds() {
         DPDocument doc = new DPDocument.Builder().addAll(SENTENCES).build(logGamma);
         doc.countWordsInSegment(new Segment(6,2));
+    }
+    
+    @Test
+    public void testDigamma() {
+        assertThat(Gamma.digamma(188.60000000000002), closeTo(5.236974913937414, 1e-10));
+        assertThat(Gamma.digamma(1027.6), closeTo(6.934494615668682, 1e-10));
     }
 }

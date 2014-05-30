@@ -9,8 +9,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.function.Function;
-import org.apache.commons.math3.special.Gamma;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -28,8 +26,6 @@ public class DPDocumentTest {
             /*5*/Arrays.asList(),
             /*6*/Arrays.asList("decided", "let", "children"));    
 
-    private static final Function<Double,Double> logGamma = Utils.memoize(Gamma::logGamma);
-    
     @Test
     public void testConstruct() {
         DPDocument doc = new DPDocument(SENTENCES);

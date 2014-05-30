@@ -5,12 +5,15 @@ import cc.mallet.optimize.OptimizationException;
 import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
+import in.aesh.segment.Segment;
+import in.aesh.segment.Segmentation;
+import in.aesh.segment.Utils;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import in.aesh.segment.Segment;
-import in.aesh.segment.Segmentation;
+import java.util.function.ToDoubleFunction;
 
 /**
  * This class implements the dynamic programming Bayesian segmentation using
@@ -18,7 +21,7 @@ import in.aesh.segment.Segmentation;
  */
 public class DPSeg {
 
-    private final DPDocumentMap documents;
+    private final Map<String,DPDocument> documents;
     private final Map<String,Integer> segmentCounts;
     private final Map<String,Segmentation> segmentations;
 
@@ -32,10 +35,12 @@ public class DPSeg {
 
         this.segmentCounts = segmentCounts;
         this.segmentations = new HashMap<>(texts.size());
-        this.documents = new DPDocumentMap(texts);
+        this.documents = texts.entrySet().stream()
+                .map(e -> Maps.immutableEntry(e.getKey(), new DPDocument(e.getValue())))
+                .collect(Utils.toImmutableMap());
     }
 
-    private static Segmentation bestSegmentationOf(DPDocument doc, int numSegments) {
+    private static Segmentation bestSegmentationOf(DPDocument doc, int numSegments, double α) {
 
         double[][] bestScores = new double[numSegments+1][doc.sentenceCount+1];
         Segment[][] bestSegments = new Segment[numSegments+1][doc.sentenceCount+1];
@@ -43,7 +48,8 @@ public class DPSeg {
         double[][] segLLs = new double[doc.sentenceCount+1][doc.sentenceCount+1];
         for (int start = 0; start < doc.sentenceCount; start++) {
             for (int length = 1; start+length <= doc.sentenceCount; length++) {
-                segLLs[start][length] = doc.segmentLogLikelihood(new Segment(start, length));
+                segLLs[start][length] = DirichletMultinomial.logLikelihood(
+                        α, doc.countWordsInSegment(new Segment(start, length)));
             }
         }
         
@@ -83,18 +89,16 @@ public class DPSeg {
     
     /**
      *
-     * @param prior
+     * @param α
      * @return
      */
-    public Map<String,Segmentation> segment(final double prior) {
+    public Map<String,Segmentation> segment(final double α) {
 
         this.documents.keySet().forEach(key -> {
             final DPDocument doc = this.documents.get(key);
             final int numSegments = this.segmentCounts.get(key);
-            
-            doc.setPrior(prior);
 
-            this.segmentations.put(key, bestSegmentationOf(doc, numSegments));
+            this.segmentations.put(key, bestSegmentationOf(doc, numSegments, α));
         });
         
         return ImmutableMap.copyOf(this.segmentations);
@@ -105,14 +109,14 @@ public class DPSeg {
      * best segmentation given the current parameters, then does a
      * gradient-based search for new parameters, and iterates.
      *
-     * @param initialPrior
-     * @return the new estimate of the prior
+     * @param α
+     * @return the new estimate of the α
      */
-    public double estimatePrior(final double initialPrior) {
+    public double estimateConcentrationParameter(final double α) {
         
-        segment(initialPrior);
+        segment(α);
 
-        Optimizable optimizable = new Optimizable(initialPrior); 
+        Optimizable optimizable = new Optimizable(α); 
         LimitedMemoryBFGS optimizer = new LimitedMemoryBFGS(optimizable);
         
         int iteration = 0;
@@ -132,81 +136,73 @@ public class DPSeg {
             improvement = optimizable.logLikelihood - logLikelihood;
             logLikelihood = optimizable.logLikelihood;
             
-            segment(optimizable.prior);
+            segment(optimizable.α);
             optimizer.reset();
 
             iteration++;
             
         } while (improvement > 0 && iteration++ < 20);
         
-        return Math.exp(optimizable.logPrior);
+        return Math.exp(optimizable.lnα);
     }
 
     /**
-     * Given the log of the Dirichlet prior, calculate the log-likelihood across
-     * all documents. This is the objective function being maximized by the 
-     * PriorOptimizer.
+     * Given a concentration parameter for the Dirichlet multinomial, calculate
+     * the log-likelihood across all documents. This is the objective function
+     * being maximized by the optimizer.
      * 
-     * @param logPrior log of the prior being re-estimated.
-     * @return the log-likelihood across all documents given this (log) prior
+     * @param α concentration parameter
+     * @return the log-likelihood across all documents
      */
-    private double computeTotalLogLikelihood(final double logPrior) {
-        return this.documents.entrySet().stream().mapToDouble(e ->
-                this.computeForDocument(e, logPrior, 
-                        e.getValue()::segmentLogLikelihood)
-        ).sum();
+    private double computeTotalLogLikelihood(final double α) {
+        return this.computeOverDocuments((int[] counts) ->
+                DirichletMultinomial.logLikelihood(α, counts));
     }
 
     /**
-     * Given the log of the Dirichlet prior, calculate the gradient of the 
-     * log-likelihood across all documents. This is the gradient of the objective
-     * function being maximized by the PriorOptimizer.
+     * Given a concentration parameter for the Dirichlet multinomial, calculate
+     * the gradient of the log-likelihood across all documents. This is the
+     * gradient of the objective function being maximized by the optimizer.
      * 
-     * @param logPrior log of the prior being re-estimated.
-     * @return the gradient of he log-likelihood across all documents
+     * @param α concentration parameter
+     * @return the gradient of the log-likelihood across all documents
      */
-    private double computeGradient(final double logPrior) {
-        return this.documents.entrySet().stream().mapToDouble(e ->
-                this.computeForDocument(e, logPrior, 
-                        e.getValue()::segmentLogLikelihoodGradient)
-        ).sum();
+    private double computeGradient(final double α) {
+        return this.computeOverDocuments((int[] counts) ->
+                DirichletMultinomial.logLikelihoodGradient(α, counts));
     }
     
-    private interface SegmentFunction {
-        double apply(Segment segment);
-    }
-    
-    private double computeForDocument(Map.Entry<String,DPDocument> e, 
-            final double logPrior, SegmentFunction f) {
-        DPDocument doc = e.getValue();
-        doc.setPrior(Math.exp(logPrior));
-
-        return this.segmentations.get(e.getKey()).stream()
-                .mapToDouble(segment -> f.apply(segment))
+    private double computeOverDocuments(ToDoubleFunction<int[]> f) {
+        return this.documents.entrySet().stream()
+                .mapToDouble(e ->
+                        this.segmentations.get(e.getKey()).stream()
+                                .map(e.getValue()::countWordsInSegment)
+                                .mapToDouble(f)
+                                .sum())
                 .sum();
     }
 
     private class Optimizable 
     implements cc.mallet.optimize.Optimizable.ByGradientValue {
 
-        private double prior;
-        private double logPrior;
+        private double α;
+        private double lnα;
         private double logLikelihood;
         
-        private Optimizable(double prior) {
-            this.prior = prior;
-            this.logPrior = Math.log(prior);
+        private Optimizable(double α) {
+            this.α = α;
+            this.lnα = Math.log(α);
         }
         
         @Override
         public double getValue() {
-            this.logLikelihood = computeTotalLogLikelihood(this.logPrior);
+            this.logLikelihood = computeTotalLogLikelihood(this.α);
             return this.logLikelihood;
         }
 
         @Override
         public void getValueGradient(double[] gradient) {
-            gradient[0] = computeGradient(this.logPrior);
+            gradient[0] = computeGradient(this.α);
         }
 
         @Override
@@ -216,26 +212,26 @@ public class DPSeg {
 
         @Override
         public void getParameters(double[] parameters) {
-            parameters[0] = this.logPrior;
+            parameters[0] = this.lnα;
         }
 
         @Override
         public double getParameter(int index) {
             checkArgument(index==0);
-            return this.logPrior;
+            return this.lnα;
         }
 
         @Override
         public void setParameters(double[] parameters) {
-            this.logPrior = parameters[0];
-            this.prior = Math.exp(parameters[0]);
+            this.lnα = parameters[0];
+            this.α = Math.exp(parameters[0]);
         }
 
         @Override
         public void setParameter(int index, double parameter) {
             checkArgument(index==0);
-            this.logPrior = parameter;
-            this.prior = Math.exp(parameter);
+            this.lnα = parameter;
+            this.α = Math.exp(parameter);
         }
         
     }

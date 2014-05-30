@@ -55,7 +55,7 @@ public class DPSegTest {
 
         DPSeg dpseg = new DPSeg(texts, map(textID, 4));
         
-        double estimate = dpseg.estimatePrior(0.2);
+        double estimate = dpseg.estimateConcentrationParameter(0.2);
         assertThat(estimate, closeTo(0.5857, 0.0002));
     }
     

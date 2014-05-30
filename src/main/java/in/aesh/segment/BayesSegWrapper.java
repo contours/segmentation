@@ -6,8 +6,6 @@ import java.util.Map;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
-import in.aesh.segment.Segmentation;
-import in.aesh.segment.Segmenter;
 
 public class BayesSegWrapper implements Segmenter {
     public static final OptionParser OPTIONS;
@@ -25,17 +23,9 @@ public class BayesSegWrapper implements Segmenter {
     private final double initialPrior;
     private final boolean estimatePrior;
 
-    public BayesSegWrapper(OptionSet options) {
-        this(options.valueOf(PRIOR), options.has(ESTIMATE_PRIOR));
-    }
-
-    BayesSegWrapper(double initialPrior) {
-        this(initialPrior, false);
-    }
-
-    BayesSegWrapper(double initialPrior, boolean estimatePrior) {
-        this.initialPrior = initialPrior;
-        this.estimatePrior = estimatePrior;
+    BayesSegWrapper(OptionSet options) {
+        this.initialPrior = options.valueOf(PRIOR);
+        this.estimatePrior = options.has(ESTIMATE_PRIOR);
     }
 
     @Override
@@ -50,7 +40,7 @@ public class BayesSegWrapper implements Segmenter {
             Map<String,List<List<String>>> texts,
             Map<String,Integer> segmentCounts) {
         DPSeg dpseg = new DPSeg(texts, segmentCounts);
-        return dpseg.estimatePrior(this.initialPrior);
+        return dpseg.estimateConcentrationParameter(this.initialPrior);
     }
 
     

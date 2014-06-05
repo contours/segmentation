@@ -1,6 +1,8 @@
 package edu.mit.nlp.segmenter.dp;
 
 import com.google.common.collect.ImmutableMap;
+import in.aesh.segment.Main;
+import in.aesh.segment.Segmentation;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -8,8 +10,6 @@ import static org.hamcrest.Matchers.closeTo;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertThat;
 import org.junit.Test;
-import in.aesh.segment.Main;
-import in.aesh.segment.Segmentation;
 
 public class DPSegTest {
     
@@ -22,6 +22,7 @@ public class DPSegTest {
         Map<String,List<List<String>>> texts = new Main(new String[]{
             "-stop", "src/test/data/STOPWORD.list",
             "-stem",
+            "-conc", "0.2", // this is just here to make the option parser happy
             "src/test/data/050.ref" }).loadAndPrepareTexts();
         String textID = texts.keySet().toArray(new String[]{})[0];
 
@@ -46,16 +47,27 @@ public class DPSegTest {
     }
     
     @Test
-    public void testLearnPrior() throws IOException {
+    public void testEstimateConcentrationParameter() throws IOException {
         Map<String,List<List<String>>> texts = new Main(new String[]{
             "-stop", "src/test/data/STOPWORD.list",
             "-stem",
+            "-conc", "0.2", // this is just here to make the option parser happy
             "src/test/data/050.ref" }).loadAndPrepareTexts();
         String textID = texts.keySet().toArray(new String[]{})[0];
 
         DPSeg dpseg = new DPSeg(texts, map(textID, 4));
         
-        double estimate = dpseg.estimateConcentrationParameter(0.2);
+        double estimate;
+        //estimate = dpseg.estimateConcentrationParameter(20);
+        //assertThat(estimate, closeTo(0.5857, 0.0002));
+
+        estimate = dpseg.estimateConcentrationParameter(2);
+        assertThat(estimate, closeTo(0.5857, 0.0002));
+
+        estimate = dpseg.estimateConcentrationParameter(0.2);
+        assertThat(estimate, closeTo(0.5857, 0.0002));
+
+        estimate = dpseg.estimateConcentrationParameter(0.02);
         assertThat(estimate, closeTo(0.5857, 0.0002));
     }
     

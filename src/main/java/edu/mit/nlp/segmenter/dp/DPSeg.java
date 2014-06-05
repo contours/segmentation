@@ -89,8 +89,8 @@ public class DPSeg {
     
     /**
      *
-     * @param α
-     * @return
+     * @param α concentration parameter
+     * @return a map of text IDs to segmentations
      */
     public Map<String,Segmentation> segment(final double α) {
 
@@ -109,8 +109,8 @@ public class DPSeg {
      * best segmentation given the current parameters, then does a
      * gradient-based search for new parameters, and iterates.
      *
-     * @param α
-     * @return the new estimate of the α
+     * @param α initial concentration parameter
+     * @return the new estimate of the concentration parameter
      */
     public double estimateConcentrationParameter(final double α) {
         

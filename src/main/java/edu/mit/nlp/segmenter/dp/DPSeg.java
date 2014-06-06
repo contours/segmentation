@@ -14,6 +14,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.ToDoubleFunction;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * This class implements the dynamic programming Bayesian segmentation using
@@ -21,6 +23,7 @@ import java.util.function.ToDoubleFunction;
  */
 public class DPSeg {
 
+    private final static Logger log = Logger.getLogger(DPSeg.class.getSimpleName());
     private final Map<String,DPDocument> documents;
     private final Map<String,Integer> segmentCounts;
     private final Map<String,Segmentation> segmentations;
@@ -93,14 +96,23 @@ public class DPSeg {
      * @return a map of text IDs to segmentations
      */
     public Map<String,Segmentation> segment(final double α) {
-
+        log.log(Level.INFO, "Segmenting texts with α={0}...", α);
         this.documents.keySet().forEach(key -> {
             final DPDocument doc = this.documents.get(key);
             final int numSegments = this.segmentCounts.get(key);
 
+            log.log(Level.INFO, "Segmenting {0}...", key);
             this.segmentations.put(key, bestSegmentationOf(doc, numSegments, α));
         });
         
+        return getSegmentations();
+    }
+
+    /**
+     *
+     * @return a map of text IDs to segmentations
+     */
+    public Map<String, Segmentation> getSegmentations() {
         return ImmutableMap.copyOf(this.segmentations);
     }
 

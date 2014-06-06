@@ -20,7 +20,12 @@ public class BayesSegmenter extends Segmenter {
             Map<String,List<List<String>>> texts,
             Map<String,Integer> segmentCounts) {
         DPSeg dpseg = new DPSeg(texts, segmentCounts);
-        return dpseg.segment(this.α);
+        if (this.estimate) {
+            dpseg.estimateConcentrationParameter(this.α);
+        } else {
+            dpseg.segment(this.α);
+        }
+        return dpseg.getSegmentations();
     }
     
     public double estimateConcentrationParameter(

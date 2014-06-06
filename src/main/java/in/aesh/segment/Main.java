@@ -119,6 +119,7 @@ public class Main {
         if (this.options.has(DOCNAME_PREFIX)) {
             this.file2id = f -> {
                 String filename = f.getName();
+                // todo: properly strip suffix
                 return this.options.valueOf(DOCNAME_PREFIX)
                         + filename.substring(0, filename.length() - 4);
             };

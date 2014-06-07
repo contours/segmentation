@@ -172,8 +172,6 @@ public class Main {
     }
 
     private void run() throws FileNotFoundException {
-        // todo: write segmentation JSON to stdout
-
         Map<String,List<List<String>>> texts = this.loadAndPrepareTexts();
         Map<String, Integer> segmentCounts = this.getDesiredSegmentCounts(texts.keySet());
 

@@ -7,7 +7,3 @@
   [Main.java]
   (src/main/java/in/aesh/segment/Main.java)
 
-- [ ] write segmentation JSON to stdout
-  [Main.java]
-  (src/main/java/in/aesh/segment/Main.java)
-

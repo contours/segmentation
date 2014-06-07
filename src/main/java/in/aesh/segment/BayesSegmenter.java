@@ -1,6 +1,7 @@
 package in.aesh.segment;
 
 import edu.mit.nlp.segmenter.dp.DPSeg;
+import java.text.MessageFormat;
 import java.util.List;
 import java.util.Map;
 import joptsimple.OptionParser;
@@ -16,16 +17,23 @@ public class BayesSegmenter extends Segmenter {
     private boolean estimate;
 
     @Override
-    public Map<String,Segmentation> segmentTexts(
+    public Segmentations segmentTexts(
             Map<String,List<List<String>>> texts,
-            Map<String,Integer> segmentCounts) {
+            Map<String,Integer> segmentCounts,
+            String preprocessingDescription) {
         DPSeg dpseg = new DPSeg(texts, segmentCounts);
+        double final_α;
         if (this.estimate) {
-            dpseg.estimateConcentrationParameter(this.α);
+            final_α = dpseg.estimateConcentrationParameter(this.α);
         } else {
             dpseg.segment(this.α);
+            final_α = this.α;
         }
-        return dpseg.getSegmentations();
+        String coder = MessageFormat.format("{0}{1}-α{2}",
+                this.getName(), preprocessingDescription, final_α);
+        return new Segmentations.Builder()
+                .add(coder, dpseg.getSegmentations())
+                .build(coder);
     }
     
     public double estimateConcentrationParameter(

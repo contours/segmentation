@@ -27,11 +27,10 @@ test {
 }
 
 run {
-    args [
-        "-ref", "/Users/ryanshaw/Code/u-series-segmentations/segmentations.json",
-        "-coder", "annotators:docsouth",
-        "-conc", "0.5", "-estimate",
-        "-d", "interviews:", "-stop", "src/test/data/STOPWORD.list", "-stem",
-        "/Users/ryanshaw/Code/u-series-segmentations/interview-sentences/U-0005.txt"
-    ]
+    args \
+        "-reference", "/Users/ryanshaw/Code/u-series-segmentations/segmentations.json", \
+        "-coder", "annotators:docsouth", \
+        "-concentration", "0.146", "-estimate", \
+        "-d", "interviews:", "-stop", "src/test/data/STOPWORD.list", "-stem", \
+        "/Users/ryanshaw/Code/u-series-segmentations/interview-sentences/U-0012.txt"
 }

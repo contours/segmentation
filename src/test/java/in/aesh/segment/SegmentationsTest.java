@@ -18,7 +18,7 @@ public class SegmentationsTest {
         File file = new File("src/test/data/segmentations.json");
         Gson gson = new Gson();
         Segmentations segmentations = gson.fromJson(new FileReader(file), Segmentations.class);
-        assertThat(segmentations.getId(), equalTo("datasets:u-series"));
+        assertThat(segmentations.getID(), equalTo("datasets:u-series"));
         assertThat(segmentations.getSegmentationType(), equalTo("linear"));
         assertThat(segmentations.getItems().size(), equalTo(19));
         

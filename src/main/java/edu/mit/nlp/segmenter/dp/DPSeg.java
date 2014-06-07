@@ -147,7 +147,7 @@ public class DPSeg {
             }
             improvement = optimizable.logLikelihood - logLikelihood;
             logLikelihood = optimizable.logLikelihood;
-            
+
             segment(optimizable.α);
             optimizer.reset();
 

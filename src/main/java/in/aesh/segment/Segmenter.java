@@ -64,8 +64,11 @@ public abstract class Segmenter {
      *
      * @param texts a map of text IDs to lists of lists of words
      * @param desiredNumSegments a map of text IDs to desired segment counts
-     * @return a map of text IDs to segmentations
+     * @param preprocessingDescription textual description of how texts have been preprocessed
+     * @return a set of segmentations
      */
-    public abstract Map<String,Segmentation> segmentTexts(
-        Map<String,List<List<String>>> texts, Map<String,Integer> desiredNumSegments);
+    public abstract Segmentations segmentTexts(
+            Map<String,List<List<String>>> texts,
+            Map<String,Integer> desiredNumSegments,
+            String preprocessingDescription);
 }

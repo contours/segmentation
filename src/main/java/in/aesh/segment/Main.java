@@ -4,12 +4,14 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.text.MessageFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -175,16 +177,20 @@ public class Main {
         Map<String,List<List<String>>> texts = this.loadAndPrepareTexts();
         Map<String, Integer> segmentCounts = this.getDesiredSegmentCounts(texts.keySet());
 
-        this.segmenters.forEach(segmenter -> {
-            segmenter.init(this.options);
-            Map<String,Segmentation> segmentations = segmenter.segmentTexts(
-                    texts, segmentCounts);
-            segmentations.keySet().forEach(id -> {
-                System.out.println(id);
-                System.out.println(segmentations.get(id));
-                System.out.println();
-            });
-        });
+        String preprocessingDescription = MessageFormat.format("{0}{1}",
+                this.options.has(STEM) ? "-stem" : "",
+                this.options.has(STOPWORDS) ? "-stop" : "");
+
+        Segmentations segmentations = this.segmenters.stream()
+                .map(segmenter -> {
+                    segmenter.init(this.options);
+                    return segmenter.segmentTexts(
+                            texts, segmentCounts, preprocessingDescription);
+                })
+                .reduce(Segmentations.empty(texts.keySet()), (l,r) -> l.merge(r));
+
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        System.out.println(gson.toJson(segmentations));
     }
 
     

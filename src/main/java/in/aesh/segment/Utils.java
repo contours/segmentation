@@ -3,6 +3,7 @@ package in.aesh.segment;
 import com.google.common.base.CharMatcher;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import java.io.File;
 import java.io.IOException;
@@ -30,6 +31,18 @@ public interface Utils {
                 ImmutableList.Builder::build); // finisher
     }
             
+    public static <T> Collector<
+                T,                             // input element type
+                ImmutableSet.Builder<T>,       // accumulation type
+                ImmutableSet<T>>               // result type
+        toImmutableSet() {
+        return Collector.of(
+                ImmutableSet.Builder::new,     // supplier
+                ImmutableSet.Builder::add,     // accumulator
+                (l,r) -> l.addAll(r.build()),  // combiner
+                ImmutableSet.Builder::build);  // finisher
+    }
+
     public static <K,V> Collector<
                     Map.Entry<K,V>,            // input element type
                     ImmutableMap.Builder<K,V>, // accumulation type

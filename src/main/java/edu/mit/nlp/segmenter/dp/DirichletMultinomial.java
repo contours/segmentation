@@ -1,6 +1,8 @@
 package edu.mit.nlp.segmenter.dp;
 
 import java.util.Arrays;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.function.IntToDoubleFunction;
 import org.apache.commons.math3.special.Gamma;
 
@@ -9,6 +11,8 @@ import org.apache.commons.math3.special.Gamma;
  * @author Ryan Shaw <ryanshaw@unc.edu>
  */
 public interface DirichletMultinomial {
+
+    static final ConcurrentMap<Double,Double> cache = new ConcurrentHashMap<>(10000);
 
     /**
      * Calculate the log-likelihood of the given vector of category counts.
@@ -44,7 +48,7 @@ public interface DirichletMultinomial {
     }
 
     static double lnΓ(double x) {
-        return Gamma.logGamma(x);
+        return cache.computeIfAbsent(x, Gamma::logGamma);
     }
 
     static double ψ(double x) {

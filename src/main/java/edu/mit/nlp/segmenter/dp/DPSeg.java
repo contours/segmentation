@@ -10,7 +10,6 @@ import in.aesh.segment.Segment;
 import in.aesh.segment.Segmentation;
 import in.aesh.segment.Utils;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.ToDoubleFunction;
@@ -26,7 +25,7 @@ public class DPSeg {
     private final static Logger log = Logger.getLogger(DPSeg.class.getSimpleName());
     private final Map<String,DPDocument> documents;
     private final Map<String,Integer> segmentCounts;
-    private final Map<String,Segmentation> segmentations;
+    private ImmutableMap<String,Segmentation> segmentations;
 
     /**
      * @param texts
@@ -37,7 +36,7 @@ public class DPSeg {
         checkArgument(segmentCounts.keySet().containsAll(texts.keySet()));
 
         this.segmentCounts = segmentCounts;
-        this.segmentations = new HashMap<>(texts.size());
+        this.segmentations = ImmutableMap.of();
         this.documents = texts.entrySet().stream()
                 .map(e -> Maps.immutableEntry(e.getKey(), new DPDocument(e.getValue())))
                 .collect(Utils.toImmutableMap());
@@ -97,13 +96,16 @@ public class DPSeg {
      */
     public Map<String,Segmentation> segment(final double α) {
         log.log(Level.INFO, "Segmenting texts with α={0}...", α);
-        this.documents.keySet().forEach(key -> {
-            final DPDocument doc = this.documents.get(key);
-            final int numSegments = this.segmentCounts.get(key);
 
-            log.log(Level.INFO, "Segmenting {0}...", key);
-            this.segmentations.put(key, bestSegmentationOf(doc, numSegments, α));
-        });
+        this.segmentations = this.documents.keySet().parallelStream()
+                .map(key -> {
+                    final DPDocument doc = this.documents.get(key);
+                    final int numSegments = this.segmentCounts.get(key);
+
+                    log.log(Level.INFO, "Segmenting {0}...", key);
+                    return Maps.immutableEntry(key, bestSegmentationOf(doc, numSegments, α));
+                })
+                .collect(Utils.toImmutableMap());
         
         return getSegmentations();
     }
@@ -113,7 +115,7 @@ public class DPSeg {
      * @return a map of text IDs to segmentations
      */
     public Map<String, Segmentation> getSegmentations() {
-        return ImmutableMap.copyOf(this.segmentations);
+        return this.segmentations;
     }
 
     /**

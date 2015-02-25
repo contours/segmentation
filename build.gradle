@@ -32,5 +32,23 @@ run {
         "-coder", "annotators:docsouth", \
         "-concentration", "0.146", "-estimate", \
         "-d", "interviews:", "-stop", "src/test/data/STOPWORD.list", "-stem", \
-        "/Users/ryanshaw/Code/u-series-segmentations/interview-sentences/U-0012.txt"
+        "/Users/ryanshaw/Code/u-series-segmentations/interview-sentences/U-0005.txt", \
+        "/Users/ryanshaw/Code/u-series-segmentations/interview-sentences/U-0007.txt", \
+        "/Users/ryanshaw/Code/u-series-segmentations/interview-sentences/U-0008.txt", \
+        "/Users/ryanshaw/Code/u-series-segmentations/interview-sentences/U-0011.txt", \
+        "/Users/ryanshaw/Code/u-series-segmentations/interview-sentences/U-0012.txt", \
+        "/Users/ryanshaw/Code/u-series-segmentations/interview-sentences/U-0014.txt", \
+        "/Users/ryanshaw/Code/u-series-segmentations/interview-sentences/U-0017.txt", \
+        "/Users/ryanshaw/Code/u-series-segmentations/interview-sentences/U-0019.txt", \
+        "/Users/ryanshaw/Code/u-series-segmentations/interview-sentences/U-0020.txt", \
+        "/Users/ryanshaw/Code/u-series-segmentations/interview-sentences/U-0023.txt", \
+        "/Users/ryanshaw/Code/u-series-segmentations/interview-sentences/U-0098.txt", \
+        "/Users/ryanshaw/Code/u-series-segmentations/interview-sentences/U-0178.txt", \
+        "/Users/ryanshaw/Code/u-series-segmentations/interview-sentences/U-0180.txt", \
+        "/Users/ryanshaw/Code/u-series-segmentations/interview-sentences/U-0181.txt", \
+        "/Users/ryanshaw/Code/u-series-segmentations/interview-sentences/U-0183.txt", \
+        "/Users/ryanshaw/Code/u-series-segmentations/interview-sentences/U-0184.txt", \
+        "/Users/ryanshaw/Code/u-series-segmentations/interview-sentences/U-0185.txt", \
+        "/Users/ryanshaw/Code/u-series-segmentations/interview-sentences/U-0186.txt", \
+        "/Users/ryanshaw/Code/u-series-segmentations/interview-sentences/U-0193.txt"
 }

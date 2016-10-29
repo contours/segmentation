@@ -50,7 +50,6 @@ class DPDocument {
             wordsB.addAll(sentence);
             ImmutableMultiset<String> wordsSoFar = wordsB.build();
             cumulativeWordUsageCountsB.add(wordsSoFar);
-            this.sentenceCount++;
         });
         this.sentenceCount = sentences.size();
 
